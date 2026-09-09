@@ -1,0 +1,30 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-900 font-sans antialiased selection:bg-academic-blue selection:text-white;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-serif text-academic-navy tracking-tight;
+  }
+}
+
+/* Academic Table Styles */
+.academic-table {
+  @apply w-full text-left border-collapse text-sm;
+}
+
+.academic-table th {
+  @apply bg-slate-100 font-semibold text-slate-800 px-4 py-3 border-b-2 border-slate-300 font-serif text-xs uppercase tracking-wider;
+}
+
+.academic-table td {
+  @apply px-4 py-3 border-b border-slate-200 text-slate-700 font-sans;
+}
+
+.academic-table tr:hover {
+  @apply bg-slate-50/80;
+}
