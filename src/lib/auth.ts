@@ -1,8 +1,6 @@
 import { createClient as createBrowserClient } from "@/lib/supabase/client";
 import { Profile, UserRole } from "@/types/database";
 
-export const LOCAL_AUTH_STORAGE_KEY = "conference_platform_auth_session";
-
 export interface SignUpParams {
   email: string;
   password: string;
@@ -24,170 +22,121 @@ export function isSupabaseConfigured(): boolean {
   );
 }
 
-// Demo profiles for local preview when live Supabase is not connected
-const DEMO_PROFILES: Record<string, Profile> = {
-  "demo-admin-id": {
-    id: "demo-admin-id",
-    full_name: "Dr. Administrator",
-    email: "admin@college.edu",
-    phone: "+91 98765 43210",
-    institution: "College of Engineering & Technology",
-    designation: "General Conference Chair",
-    country: "India",
-    role: "ADMIN",
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  "demo-participant-id": {
-    id: "demo-participant-id",
-    full_name: "Prof. Ananya Sharma",
-    email: "ananya.sharma@university.edu",
-    phone: "+91 91234 56789",
-    institution: "Dept. of Computer Science, National Institute",
-    designation: "Associate Professor",
-    country: "India",
-    role: "PARTICIPANT",
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-};
-
 export async function signUpUser(params: SignUpParams): Promise<{ user: any; profile: Profile | null; error: string | null }> {
-  if (isSupabaseConfigured()) {
-    const supabase = createBrowserClient();
-    
-    // Supabase Auth SignUp
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: params.email,
-      password: params.password,
-      options: {
-        data: {
-          full_name: params.fullName,
-          institution: params.institution,
-          designation: params.designation || "",
-          country: params.country,
-          phone: params.phone || "",
-        },
-      },
-    });
+  if (!isSupabaseConfigured()) {
+    return {
+      user: null,
+      profile: null,
+      error: "Real Supabase project credentials are missing. Please add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to .env.local.",
+    };
+  }
 
-    if (authError) {
-      return { user: null, profile: null, error: authError.message };
-    }
+  const supabase = createBrowserClient();
 
-    if (authData.user) {
-      // Upsert to public.profiles table
-      const newProfile: Partial<Profile> = {
-        id: authData.user.id,
+  // Supabase Auth SignUp
+  const { data: authData, error: authError } = await supabase.auth.signUp({
+    email: params.email,
+    password: params.password,
+    options: {
+      data: {
         full_name: params.fullName,
-        email: params.email,
-        phone: params.phone || "",
         institution: params.institution,
         designation: params.designation || "",
         country: params.country,
-        role: "PARTICIPANT", // MANDATORY default role
-      };
+        phone: params.phone || "",
+      },
+    },
+  });
 
-      const { data: profileData, error: profileError } = await supabase
-        .from("profiles")
-        .upsert([newProfile])
-        .select()
-        .single();
+  if (authError) {
+    return { user: null, profile: null, error: authError.message };
+  }
 
-      if (profileError) {
-        console.warn("Profile table insert warning:", profileError.message);
-      }
+  if (authData.user) {
+    // Explicit insert to public.profiles table (in addition to DB trigger handle_new_user)
+    const newProfile: Partial<Profile> = {
+      id: authData.user.id,
+      full_name: params.fullName,
+      email: params.email,
+      phone: params.phone || "",
+      institution: params.institution,
+      designation: params.designation || "",
+      country: params.country,
+      role: "PARTICIPANT", // MANDATORY default role
+    };
 
-      return {
-        user: authData.user,
-        profile: (profileData as Profile) || (newProfile as Profile),
-        error: null,
-      };
+    const { data: profileData, error: profileError } = await supabase
+      .from("profiles")
+      .upsert([newProfile])
+      .select()
+      .single();
+
+    if (profileError) {
+      console.warn("Profile table upsert info:", profileError.message);
     }
 
-    return { user: null, profile: null, error: "Registration failed." };
+    return {
+      user: authData.user,
+      profile: (profileData as Profile) || (newProfile as Profile),
+      error: null,
+    };
   }
 
-  // Local Dev Fallback session handler
-  const isDemoAdmin = params.email.toLowerCase().includes("admin");
-  const newProfile: Profile = {
-    id: `local-user-${Date.now()}`,
-    full_name: params.fullName,
-    email: params.email,
-    phone: params.phone || "",
-    institution: params.institution,
-    designation: params.designation || "Research Scholar",
-    country: params.country,
-    role: isDemoAdmin ? "ADMIN" : "PARTICIPANT",
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  };
-
-  if (typeof window !== "undefined") {
-    localStorage.setItem(LOCAL_AUTH_STORAGE_KEY, JSON.stringify(newProfile));
-  }
-
-  return { user: { id: newProfile.id, email: newProfile.email }, profile: newProfile, error: null };
+  return { user: null, profile: null, error: "Registration failed on Supabase." };
 }
 
 export async function signInUser(email: string, password: string): Promise<{ user: any; profile: Profile | null; error: string | null }> {
-  if (isSupabaseConfigured()) {
-    const supabase = createBrowserClient();
-    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+  if (!isSupabaseConfigured()) {
+    return {
+      user: null,
+      profile: null,
+      error: "Real Supabase project credentials are missing. Please add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to .env.local.",
+    };
+  }
 
-    if (authError) {
-      let friendlyMessage = authError.message;
-      if (authError.message.includes("Invalid login credentials")) {
-        friendlyMessage = "Unable to sign in. Please check your email and password.";
-      }
-      return { user: null, profile: null, error: friendlyMessage };
+  const supabase = createBrowserClient();
+  const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+
+  if (authError) {
+    let friendlyMessage = authError.message;
+    if (authError.message.includes("Invalid login credentials")) {
+      friendlyMessage = "Unable to sign in. Please check your email and password.";
     }
+    return { user: null, profile: null, error: friendlyMessage };
+  }
 
-    if (authData.user) {
-      // Fetch user profile from public.profiles
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", authData.user.id)
-        .single();
+  if (authData.user) {
+    // Fetch profile from public.profiles table in PostgreSQL
+    const { data: profileData, error: profileError } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", authData.user.id)
+      .single();
 
-      const profile = (profileData as Profile) || {
+    if (profileError || !profileData) {
+      // Fallback to metadata if trigger was delayed
+      const fallbackProfile: Profile = {
         id: authData.user.id,
         full_name: authData.user.user_metadata?.full_name || email.split("@")[0],
         email: authData.user.email || email,
+        phone: authData.user.user_metadata?.phone || "",
         institution: authData.user.user_metadata?.institution || "",
+        designation: authData.user.user_metadata?.designation || "",
         country: authData.user.user_metadata?.country || "India",
         role: (authData.user.user_metadata?.role as UserRole) || "PARTICIPANT",
         created_at: authData.user.created_at,
         updated_at: new Date().toISOString(),
       };
-
-      return { user: authData.user, profile, error: null };
+      return { user: authData.user, profile: fallbackProfile, error: null };
     }
 
-    return { user: null, profile: null, error: "Authentication failed." };
+    return { user: authData.user, profile: profileData as Profile, error: null };
   }
 
-  // Local Dev Fallback
-  if (!email || !password) {
-    return { user: null, profile: null, error: "Please provide both email and password." };
-  }
-
-  const isAdmin = email.toLowerCase().includes("admin");
-  const profile: Profile = isAdmin ? DEMO_PROFILES["demo-admin-id"] : {
-    ...DEMO_PROFILES["demo-participant-id"],
-    email,
-    full_name: email.split("@")[0].replace(/\./g, " ").toUpperCase(),
-  };
-
-  if (typeof window !== "undefined") {
-    localStorage.setItem(LOCAL_AUTH_STORAGE_KEY, JSON.stringify(profile));
-  }
-
-  return { user: { id: profile.id, email: profile.email }, profile, error: null };
+  return { user: null, profile: null, error: "Authentication failed." };
 }
 
 export async function signOutUser(): Promise<void> {
@@ -195,25 +144,23 @@ export async function signOutUser(): Promise<void> {
     const supabase = createBrowserClient();
     await supabase.auth.signOut();
   }
-  if (typeof window !== "undefined") {
-    localStorage.removeItem(LOCAL_AUTH_STORAGE_KEY);
-  }
 }
 
 export async function resetPasswordForEmail(email: string): Promise<{ success: boolean; message: string }> {
-  if (!email) {
-    return { success: false, message: "Please enter your registered email address." };
+  if (!isSupabaseConfigured()) {
+    return {
+      success: false,
+      message: "Supabase connection is not configured in .env.local.",
+    };
   }
 
-  if (isSupabaseConfigured()) {
-    const supabase = createBrowserClient();
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/login`,
-    });
+  const supabase = createBrowserClient();
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${window.location.origin}/login`,
+  });
 
-    if (error) {
-      return { success: false, message: error.message };
-    }
+  if (error) {
+    return { success: false, message: error.message };
   }
 
   return {
@@ -223,83 +170,50 @@ export async function resetPasswordForEmail(email: string): Promise<{ success: b
 }
 
 export async function updateUserProfile(userId: string, updates: Partial<Profile>): Promise<{ profile: Profile | null; error: string | null }> {
-  // Prevent unauthorized modification of critical fields
+  if (!isSupabaseConfigured()) {
+    return {
+      profile: null,
+      error: "Real Supabase project credentials are missing.",
+    };
+  }
+
+  // Security check: strip role field so users cannot elevate themselves
   const safeUpdates = { ...updates };
   delete (safeUpdates as any).id;
-  delete (safeUpdates as any).role; // User CANNOT change their own role!
+  delete (safeUpdates as any).role;
   delete (safeUpdates as any).created_at;
-
   safeUpdates.updated_at = new Date().toISOString();
 
-  if (isSupabaseConfigured()) {
-    const supabase = createBrowserClient();
-    const { data, error } = await supabase
-      .from("profiles")
-      .update(safeUpdates)
-      .eq("id", userId)
-      .select()
-      .single();
+  const supabase = createBrowserClient();
+  const { data, error } = await supabase
+    .from("profiles")
+    .update(safeUpdates)
+    .eq("id", userId)
+    .select()
+    .single();
 
-    if (error) {
-      return { profile: null, error: error.message };
-    }
-    return { profile: data as Profile, error: null };
+  if (error) {
+    return { profile: null, error: error.message };
   }
 
-  // Local storage fallback
-  if (typeof window !== "undefined") {
-    const existing = localStorage.getItem(LOCAL_AUTH_STORAGE_KEY);
-    if (existing) {
-      const current = JSON.parse(existing) as Profile;
-      const updated = { ...current, ...safeUpdates };
-      localStorage.setItem(LOCAL_AUTH_STORAGE_KEY, JSON.stringify(updated));
-      return { profile: updated, error: null };
-    }
-  }
-
-  return { profile: null, error: "Profile update failed." };
+  return { profile: data as Profile, error: null };
 }
 
 export async function fetchAllProfiles(): Promise<Profile[]> {
-  if (isSupabaseConfigured()) {
-    const supabase = createBrowserClient();
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (!error && data) {
-      return data as Profile[];
-    }
+  if (!isSupabaseConfigured()) {
+    return [];
   }
 
-  // Demo participant list for admin table preview
-  return [
-    DEMO_PROFILES["demo-admin-id"],
-    DEMO_PROFILES["demo-participant-id"],
-    {
-      id: "demo-p-2",
-      full_name: "Dr. Vikram Sethi",
-      email: "v.sethi@iit.ac.in",
-      phone: "+91 98111 22233",
-      institution: "Indian Institute of Technology",
-      designation: "Professor",
-      country: "India",
-      role: "PARTICIPANT",
-      created_at: new Date(Date.now() - 86400000 * 2).toISOString(),
-      updated_at: new Date().toISOString(),
-    },
-    {
-      id: "demo-p-3",
-      full_name: "Prof. Sarah Jenkins",
-      email: "sarah.jenkins@oxford.ac.uk",
-      phone: "+44 20 7946 0912",
-      institution: "University of Oxford",
-      designation: "Senior Researcher",
-      country: "United Kingdom",
-      role: "PARTICIPANT",
-      created_at: new Date(Date.now() - 86400000 * 5).toISOString(),
-      updated_at: new Date().toISOString(),
-    },
-  ];
+  const supabase = createBrowserClient();
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error || !data) {
+    console.error("Error fetching profiles from Supabase:", error?.message);
+    return [];
+  }
+
+  return data as Profile[];
 }

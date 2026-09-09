@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { Profile, UserRole } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
-import { isSupabaseConfigured, LOCAL_AUTH_STORAGE_KEY, signOutUser } from "@/lib/auth";
+import { isSupabaseConfigured, signOutUser } from "@/lib/auth";
 
 interface AuthContextType {
   user: any | null;
@@ -68,24 +68,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setProfile(null);
       }
     } else {
-      // Local dev session fallback
-      if (typeof window !== "undefined") {
-        const stored = localStorage.getItem(LOCAL_AUTH_STORAGE_KEY);
-        if (stored) {
-          try {
-            const parsedProfile = JSON.parse(stored) as Profile;
-            setProfile(parsedProfile);
-            setUser({ id: parsedProfile.id, email: parsedProfile.email });
-          } catch (err) {
-            localStorage.removeItem(LOCAL_AUTH_STORAGE_KEY);
-            setUser(null);
-            setProfile(null);
-          }
-        } else {
-          setUser(null);
-          setProfile(null);
-        }
-      }
+      // Real Supabase credentials not configured yet
+      setUser(null);
+      setProfile(null);
     }
 
     setLoading(false);
