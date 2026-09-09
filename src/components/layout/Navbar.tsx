@@ -2,14 +2,18 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { defaultConferenceConfig } from "@/config/conference";
-import { Menu, X, User, LayoutDashboard, Calendar } from "lucide-react";
+import { useAuth } from "@/components/providers/AuthProvider";
+import { Menu, X, User, LayoutDashboard, ShieldAlert, LogOut, UserCheck } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 
 export const Navbar: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
+
+  const { isAuthenticated, isAdmin, profile, signOut } = useAuth();
 
   const navLinks = [
     { href: "/", label: "Home" },
@@ -30,6 +34,12 @@ export const Navbar: React.FC = () => {
     return false;
   };
 
+  const handleSignOut = async () => {
+    await signOut();
+    setMobileMenuOpen(false);
+    router.push("/login");
+  };
+
   return (
     <header className="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-subtle">
       {/* Top Banner Notice */}
@@ -40,11 +50,19 @@ export const Navbar: React.FC = () => {
               Upcoming
             </span>
             <span className="text-slate-300 font-medium">
-              {defaultConferenceConfig.shortName} • {defaultConferenceConfig.dates.formatted} • {defaultConferenceConfig.location.city}, {defaultConferenceConfig.location.country}
+              {defaultConferenceConfig.shortName} • {defaultConferenceConfig.dates.formatted} • {defaultConferenceConfig.location.city}
             </span>
           </div>
-          <div className="hidden sm:flex items-center space-x-4 text-slate-400">
-            <span>Official Academic Platform</span>
+
+          <div className="hidden sm:flex items-center space-x-4 text-slate-300 text-xs">
+            {isAuthenticated && profile ? (
+              <span className="text-amber-400 font-medium flex items-center gap-1">
+                <UserCheck className="w-3.5 h-3.5" />
+                <span>Signed in as: <strong>{profile.full_name}</strong> ({profile.role})</span>
+              </span>
+            ) : (
+              <span>Official Academic Platform</span>
+            )}
             <span>|</span>
             <a href={`mailto:${defaultConferenceConfig.contact.email}`} className="hover:text-white transition-colors">
               {defaultConferenceConfig.contact.email}
@@ -89,17 +107,39 @@ export const Navbar: React.FC = () => {
           </nav>
 
           {/* Desktop Action Buttons */}
-          <div className="hidden lg:flex items-center space-x-3">
-            <Link href="/login">
-              <Button variant="outline" size="sm" leftIcon={<User className="w-3.5 h-3.5" />}>
-                Login
-              </Button>
-            </Link>
-            <Link href="/dashboard">
-              <Button variant="primary" size="sm" leftIcon={<LayoutDashboard className="w-3.5 h-3.5" />}>
-                Dashboard
-              </Button>
-            </Link>
+          <div className="hidden lg:flex items-center space-x-2">
+            {!isAuthenticated ? (
+              <>
+                <Link href="/login">
+                  <Button variant="outline" size="sm" leftIcon={<User className="w-3.5 h-3.5" />}>
+                    Login
+                  </Button>
+                </Link>
+                <Link href="/register">
+                  <Button variant="gold" size="sm">
+                    Register
+                  </Button>
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link href="/dashboard">
+                  <Button variant="primary" size="sm" leftIcon={<LayoutDashboard className="w-3.5 h-3.5" />}>
+                    Dashboard
+                  </Button>
+                </Link>
+                {isAdmin && (
+                  <Link href="/admin">
+                    <Button variant="gold" size="sm" leftIcon={<ShieldAlert className="w-3.5 h-3.5" />}>
+                      Admin
+                    </Button>
+                  </Link>
+                )}
+                <Button variant="ghost" size="sm" onClick={handleSignOut} leftIcon={<LogOut className="w-3.5 h-3.5" />}>
+                  Sign Out
+                </Button>
+              </>
+            )}
           </div>
 
           {/* Mobile menu button */}
@@ -132,22 +172,45 @@ export const Navbar: React.FC = () => {
               {link.label}
             </Link>
           ))}
+
           <div className="pt-4 mt-2 border-t border-slate-200 flex flex-col gap-2">
-            <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
-              <Button variant="outline" className="w-full justify-center">
-                Login
-              </Button>
-            </Link>
-            <Link href="/register" onClick={() => setMobileMenuOpen(false)}>
-              <Button variant="gold" className="w-full justify-center">
-                Register Now
-              </Button>
-            </Link>
-            <Link href="/admin" onClick={() => setMobileMenuOpen(false)}>
-              <Button variant="secondary" className="w-full justify-center">
-                Admin Console
-              </Button>
-            </Link>
+            {!isAuthenticated ? (
+              <>
+                <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
+                  <Button variant="outline" className="w-full justify-center">
+                    Login
+                  </Button>
+                </Link>
+                <Link href="/register" onClick={() => setMobileMenuOpen(false)}>
+                  <Button variant="gold" className="w-full justify-center">
+                    Register Account
+                  </Button>
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link href="/dashboard" onClick={() => setMobileMenuOpen(false)}>
+                  <Button variant="primary" className="w-full justify-center">
+                    Participant Dashboard
+                  </Button>
+                </Link>
+                <Link href="/dashboard/profile" onClick={() => setMobileMenuOpen(false)}>
+                  <Button variant="outline" className="w-full justify-center">
+                    My Profile
+                  </Button>
+                </Link>
+                {isAdmin && (
+                  <Link href="/admin" onClick={() => setMobileMenuOpen(false)}>
+                    <Button variant="gold" className="w-full justify-center">
+                      Admin Portal
+                    </Button>
+                  </Link>
+                )}
+                <Button variant="ghost" onClick={handleSignOut} className="w-full justify-center text-red-700">
+                  Sign Out
+                </Button>
+              </>
+            )}
           </div>
         </div>
       )}

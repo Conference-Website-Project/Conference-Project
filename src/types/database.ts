@@ -20,16 +20,21 @@ export type PaymentStatus =
   | 'FAILED'
   | 'REFUNDED';
 
-export interface UserProfile {
-  id: string; // references auth.users
+export interface Profile {
+  id: string; // References auth.users(id)
   full_name: string;
   email: string;
-  affiliation: string;
+  phone?: string;
+  institution: string;
+  designation?: string;
   country: string;
   role: UserRole;
+  avatar_url?: string;
   created_at: string;
   updated_at: string;
 }
+
+export interface UserProfile extends Profile {}
 
 export interface Conference {
   id: string;
