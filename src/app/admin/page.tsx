@@ -143,6 +143,8 @@ export default function AdminDashboardPage() {
               onClick={() => {
                 if (item.id === "participants") {
                   router.push("/admin/participants");
+                } else if (item.id === "papers") {
+                  router.push("/admin/papers");
                 } else {
                   setActiveTab(item.id as any);
                 }
@@ -190,13 +192,16 @@ export default function AdminDashboardPage() {
                   </CardContent>
                 </Card>
 
-                <Card bordered accentBorder="navy">
-                  <CardHeader className="pb-2">
-                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Paper Submissions</span>
-                    <CardTitle className="text-3xl font-bold font-serif text-academic-navy mt-1">0</CardTitle>
+                <Card bordered accentBorder="navy" className="hover:border-slate-300 transition-all cursor-pointer" onClick={() => router.push("/admin/papers")}>
+                  <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                    <div>
+                      <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Paper Submissions</span>
+                      <CardTitle className="text-3xl font-bold font-serif text-academic-navy mt-1">Review</CardTitle>
+                    </div>
+                    <ArrowRight className="w-5 h-5 text-academic-blue" />
                   </CardHeader>
                   <CardContent>
-                    <span className="text-xs text-slate-500">Double-Blind Submissions</span>
+                    <span className="text-xs text-slate-500">View All Submissions →</span>
                   </CardContent>
                 </Card>
 

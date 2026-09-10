@@ -167,18 +167,28 @@ export default function ParticipantDashboardPage() {
             {/* My Papers Card */}
             <Card bordered accentBorder="navy">
               <CardHeader className="flex justify-between items-center">
-                <CardTitle>My Papers</CardTitle>
-                <Link href="/call-for-papers">
-                  <Button variant="outline" size="sm" leftIcon={<Upload className="w-3.5 h-3.5" />}>
-                    Call for Papers
+                <div>
+                  <CardTitle>My Research Papers</CardTitle>
+                  <p className="text-xs text-slate-500 mt-0.5">Manuscripts submitted for peer review</p>
+                </div>
+                <Link href="/dashboard/papers/new">
+                  <Button variant="gold" size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />}>
+                    Submit Paper
                   </Button>
                 </Link>
               </CardHeader>
-              <CardContent>
-                <EmptyState
-                  title="No Papers Submitted Yet"
-                  description="Manuscript submission is currently active. You can upload original research papers for double-blind peer review."
-                />
+              <CardContent className="space-y-4">
+                <div className="p-4 bg-blue-50/60 border border-blue-200 rounded-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+                  <div>
+                    <span className="font-bold text-academic-navy text-sm block">Paper Submission System Active</span>
+                    <span className="text-slate-600">Submit original manuscripts to {config.shortName}. PDF format only.</span>
+                  </div>
+                  <Link href="/dashboard/papers">
+                    <Button variant="primary" size="sm" leftIcon={<FileText className="w-3.5 h-3.5" />}>
+                      View My Papers
+                    </Button>
+                  </Link>
+                </div>
               </CardContent>
             </Card>
           </div>

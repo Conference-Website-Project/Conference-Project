@@ -105,26 +105,57 @@ export interface DatabaseCommitteeMember {
 
 export interface Paper {
   id: string;
+  paper_id?: string; // Human readable ID like ICARET27-0001
   conference_id: string;
   track_id: string;
   author_user_id: string;
+  submitted_by?: string;
   title: string;
   abstract: string;
   keywords: string[];
   file_url?: string;
+  manuscript_path?: string;
   status: PaperStatus;
   submission_date: string;
+  created_at?: string;
   updated_at: string;
 }
 
 export interface PaperAuthor {
-  id: string;
-  paper_id: string;
+  id?: string;
+  paper_id?: string;
   author_name: string;
   author_email: string;
   affiliation: string;
+  designation?: string;
   is_corresponding: boolean;
   display_order: number;
+  created_at?: string;
+}
+
+export interface PaperWithDetails extends Paper {
+  track?: ConferenceTrack;
+  authors?: PaperAuthor[];
+  submitter_profile?: Profile;
+}
+
+export interface CreatePaperInput {
+  title: string;
+  abstract: string;
+  keywords: string[];
+  track_id: string;
+  conference_id?: string;
+  authors: Omit<PaperAuthor, 'id' | 'paper_id'>[];
+  file: File;
+}
+
+export interface UpdatePaperInput {
+  title?: string;
+  abstract?: string;
+  keywords?: string[];
+  track_id?: string;
+  authors?: Omit<PaperAuthor, 'id' | 'paper_id'>[];
+  file?: File;
 }
 
 export interface Registration {
