@@ -9,7 +9,28 @@ ALTER TABLE public.profiles
 ALTER TABLE public.profiles 
   ADD COLUMN IF NOT EXISTS participation_type VARCHAR(50) NOT NULL DEFAULT 'DELEGATE';
 
--- 2. Update trigger function to support Google OAuth metadata extraction
+-- 2. Non-recursive RLS admin check for public.profiles
+CREATE OR REPLACE FUNCTION public.is_admin(user_id uuid)
+RETURNS boolean AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = user_id AND role = 'ADMIN'
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
+
+DROP POLICY IF EXISTS "Admins can view all profiles" ON public.profiles;
+CREATE POLICY "Admins can view all profiles"
+  ON public.profiles FOR SELECT
+  USING (public.is_admin(auth.uid()));
+
+DROP POLICY IF EXISTS "Admins can update any profile" ON public.profiles;
+CREATE POLICY "Admins can update any profile"
+  ON public.profiles FOR UPDATE
+  USING (public.is_admin(auth.uid()));
+
+-- 3. Update trigger function to support Google OAuth metadata extraction
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
