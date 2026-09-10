@@ -1,5 +1,5 @@
 import { createClient as createBrowserClient } from "@/lib/supabase/client";
-import { Profile, UserRole } from "@/types/database";
+import { Profile, UserRole, ParticipationType } from "@/types/database";
 
 export interface SignUpParams {
   email: string;
@@ -9,6 +9,15 @@ export interface SignUpParams {
   designation?: string;
   country: string;
   phone?: string;
+}
+
+export interface OnboardingData {
+  fullName: string;
+  institution: string;
+  designation?: string;
+  country: string;
+  phone?: string;
+  participationType: ParticipationType;
 }
 
 export function isSupabaseConfigured(): boolean {
@@ -22,6 +31,34 @@ export function isSupabaseConfigured(): boolean {
   );
 }
 
+export async function signInWithGoogle(): Promise<{ error: string | null }> {
+  if (!isSupabaseConfigured()) {
+    return {
+      error: "Real Supabase project credentials are missing. Please configure NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.local.",
+    };
+  }
+
+  const supabase = createBrowserClient();
+  const origin = typeof window !== "undefined" ? window.location.origin : "http://localhost:3005";
+
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: `${origin}/auth/callback`,
+      queryParams: {
+        access_type: "offline",
+        prompt: "consent",
+      },
+    },
+  });
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  return { error: null };
+}
+
 export async function signUpUser(params: SignUpParams): Promise<{ user: any; profile: Profile | null; error: string | null }> {
   if (!isSupabaseConfigured()) {
     return {
@@ -33,7 +70,6 @@ export async function signUpUser(params: SignUpParams): Promise<{ user: any; pro
 
   const supabase = createBrowserClient();
 
-  // Supabase Auth SignUp
   const { data: authData, error: authError } = await supabase.auth.signUp({
     email: params.email,
     password: params.password,
@@ -53,7 +89,6 @@ export async function signUpUser(params: SignUpParams): Promise<{ user: any; pro
   }
 
   if (authData.user) {
-    // Explicit insert to public.profiles table (in addition to DB trigger handle_new_user)
     const newProfile: Partial<Profile> = {
       id: authData.user.id,
       full_name: params.fullName,
@@ -62,7 +97,9 @@ export async function signUpUser(params: SignUpParams): Promise<{ user: any; pro
       institution: params.institution,
       designation: params.designation || "",
       country: params.country,
-      role: "PARTICIPANT", // MANDATORY default role
+      role: "PARTICIPANT",
+      onboarding_completed: true, // Email/Password signup supplies full info
+      participation_type: "DELEGATE",
     };
 
     const { data: profileData, error: profileError } = await supabase
@@ -109,15 +146,13 @@ export async function signInUser(email: string, password: string): Promise<{ use
   }
 
   if (authData.user) {
-    // Fetch profile from public.profiles table in PostgreSQL
-    const { data: profileData, error: profileError } = await supabase
+    const { data: profileData } = await supabase
       .from("profiles")
       .select("*")
       .eq("id", authData.user.id)
       .single();
 
-    if (profileError || !profileData) {
-      // Fallback to metadata if trigger was delayed
+    if (!profileData) {
       const fallbackProfile: Profile = {
         id: authData.user.id,
         full_name: authData.user.user_metadata?.full_name || email.split("@")[0],
@@ -127,6 +162,8 @@ export async function signInUser(email: string, password: string): Promise<{ use
         designation: authData.user.user_metadata?.designation || "",
         country: authData.user.user_metadata?.country || "India",
         role: (authData.user.user_metadata?.role as UserRole) || "PARTICIPANT",
+        onboarding_completed: true,
+        participation_type: "DELEGATE",
         created_at: authData.user.created_at,
         updated_at: new Date().toISOString(),
       };
@@ -169,6 +206,43 @@ export async function resetPasswordForEmail(email: string): Promise<{ success: b
   };
 }
 
+export async function completeOnboardingProfile(
+  userId: string,
+  data: OnboardingData
+): Promise<{ profile: Profile | null; error: string | null }> {
+  if (!isSupabaseConfigured()) {
+    return {
+      profile: null,
+      error: "Real Supabase project credentials are missing.",
+    };
+  }
+
+  const supabase = createBrowserClient();
+  const updates = {
+    full_name: data.fullName,
+    institution: data.institution,
+    designation: data.designation || "",
+    country: data.country,
+    phone: data.phone || "",
+    participation_type: data.participationType,
+    onboarding_completed: true,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { data: updatedData, error } = await supabase
+    .from("profiles")
+    .update(updates)
+    .eq("id", userId)
+    .select()
+    .single();
+
+  if (error) {
+    return { profile: null, error: error.message };
+  }
+
+  return { profile: updatedData as Profile, error: null };
+}
+
 export async function updateUserProfile(userId: string, updates: Partial<Profile>): Promise<{ profile: Profile | null; error: string | null }> {
   if (!isSupabaseConfigured()) {
     return {
@@ -177,7 +251,6 @@ export async function updateUserProfile(userId: string, updates: Partial<Profile
     };
   }
 
-  // Security check: strip role field so users cannot elevate themselves
   const safeUpdates = { ...updates };
   delete (safeUpdates as any).id;
   delete (safeUpdates as any).role;

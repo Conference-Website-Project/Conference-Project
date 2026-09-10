@@ -33,10 +33,14 @@ export default function ParticipantDashboardPage() {
   const config = defaultConferenceConfig;
 
   useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      router.push("/login?redirect=/dashboard");
+    if (!authLoading) {
+      if (!isAuthenticated) {
+        router.push("/login?redirect=/dashboard");
+      } else if (profile && !profile.onboarding_completed && profile.role !== "ADMIN") {
+        router.push("/onboarding");
+      }
     }
-  }, [isAuthenticated, authLoading, router]);
+  }, [isAuthenticated, profile, authLoading, router]);
 
   if (authLoading || !profile) {
     return (
@@ -58,6 +62,11 @@ export default function ParticipantDashboardPage() {
             <Badge variant={profile.role === "ADMIN" ? "gold" : "navy"}>
               {profile.role}
             </Badge>
+            {profile.participation_type && (
+              <Badge variant="gold">
+                {profile.participation_type === "AUTHOR" ? "Paper Author" : "Delegate"}
+              </Badge>
+            )}
           </div>
           <p className="text-xs text-slate-500 mt-1">
             Participant Portal for <span className="font-semibold text-academic-navy">{config.shortName}</span> ({config.institution})

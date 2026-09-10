@@ -20,6 +20,8 @@ export type PaymentStatus =
   | 'FAILED'
   | 'REFUNDED';
 
+export type ParticipationType = 'AUTHOR' | 'DELEGATE';
+
 export interface Profile {
   id: string; // References auth.users(id)
   full_name: string;
@@ -30,6 +32,8 @@ export interface Profile {
   country: string;
   role: UserRole;
   avatar_url?: string;
+  onboarding_completed: boolean;
+  participation_type: ParticipationType;
   created_at: string;
   updated_at: string;
 }

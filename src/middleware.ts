@@ -11,7 +11,6 @@ export async function middleware(request: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  // Check if live Supabase environment keys are provided
   if (
     supabaseUrl &&
     supabaseAnonKey &&
@@ -52,7 +51,32 @@ export async function middleware(request: NextRequest) {
 
     const pathname = request.nextUrl.pathname;
 
-    // Protection logic for /dashboard
+    let profile: { onboarding_completed?: boolean; role?: string } | null = null;
+    if (user) {
+      const { data } = await supabase
+        .from("profiles")
+        .select("onboarding_completed, role")
+        .eq("id", user.id)
+        .single();
+      profile = data;
+    }
+
+    // 1. Protection for /onboarding
+    if (pathname.startsWith("/onboarding")) {
+      if (!user) {
+        const url = request.nextUrl.clone();
+        url.pathname = "/login";
+        url.searchParams.set("redirect", "/onboarding");
+        return NextResponse.redirect(url);
+      }
+      if (profile?.onboarding_completed === true || profile?.role === "ADMIN") {
+        const url = request.nextUrl.clone();
+        url.pathname = "/dashboard";
+        return NextResponse.redirect(url);
+      }
+    }
+
+    // 2. Protection for /dashboard
     if (pathname.startsWith("/dashboard")) {
       if (!user) {
         const url = request.nextUrl.clone();
@@ -60,9 +84,14 @@ export async function middleware(request: NextRequest) {
         url.searchParams.set("redirect", pathname);
         return NextResponse.redirect(url);
       }
+      if (profile && !profile.onboarding_completed && profile.role !== "ADMIN") {
+        const url = request.nextUrl.clone();
+        url.pathname = "/onboarding";
+        return NextResponse.redirect(url);
+      }
     }
 
-    // Protection logic for /admin
+    // 3. Protection for /admin
     if (pathname.startsWith("/admin")) {
       if (!user) {
         const url = request.nextUrl.clone();
@@ -70,13 +99,6 @@ export async function middleware(request: NextRequest) {
         url.searchParams.set("redirect", pathname);
         return NextResponse.redirect(url);
       }
-
-      // Check role in profiles
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", user.id)
-        .single();
 
       if (profile?.role !== "ADMIN") {
         const url = request.nextUrl.clone();
@@ -86,10 +108,14 @@ export async function middleware(request: NextRequest) {
       }
     }
 
-    // Redirect authenticated users away from /login and /register
+    // 4. Redirect authenticated users away from /login and /register
     if (user && (pathname === "/login" || pathname === "/register")) {
       const url = request.nextUrl.clone();
-      url.pathname = "/dashboard";
+      if (profile && !profile.onboarding_completed && profile.role !== "ADMIN") {
+        url.pathname = "/onboarding";
+      } else {
+        url.pathname = "/dashboard";
+      }
       return NextResponse.redirect(url);
     }
   }
@@ -99,6 +125,7 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
+    "/onboarding/:path*",
     "/dashboard/:path*",
     "/admin/:path*",
     "/login",

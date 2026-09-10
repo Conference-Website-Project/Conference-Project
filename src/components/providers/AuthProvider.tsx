@@ -59,6 +59,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             institution: session.user.user_metadata?.institution || "",
             country: session.user.user_metadata?.country || "India",
             role: "PARTICIPANT",
+            onboarding_completed: false,
+            participation_type: "DELEGATE",
             created_at: session.user.created_at,
             updated_at: new Date().toISOString(),
           });
