@@ -70,7 +70,7 @@ export default function HomePage() {
                   Register Now
                 </Button>
               </Link>
-              <Link href="/call-for-papers">
+              <Link href="/dashboard/papers/new">
                 <Button variant="outline" size="lg" className="bg-white/10 hover:bg-white/20 text-white border-slate-600">
                   Submit Paper
                 </Button>

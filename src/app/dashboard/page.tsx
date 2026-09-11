@@ -245,7 +245,7 @@ export default function ParticipantDashboardPage() {
         <Card bordered accentBorder="navy">
           <CardHeader className="flex justify-between items-center">
             <CardTitle>Manuscript Submissions</CardTitle>
-            <Link href="/call-for-papers">
+            <Link href="/dashboard/papers/new">
               <Button variant="gold" size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />}>
                 Submit Manuscript
               </Button>

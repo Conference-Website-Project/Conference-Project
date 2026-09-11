@@ -27,12 +27,22 @@ import {
 } from "lucide-react";
 
 export default function SubmitNewPaperPage() {
-  const { user, profile, loading: authLoading } = useAuth();
+  const { user, profile, loading: authLoading, isAuthenticated } = useAuth();
   const router = useRouter();
 
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [tracks, setTracks] = useState<ConferenceTrack[]>([]);
   const [loadingTracks, setLoadingTracks] = useState(true);
+
+  useEffect(() => {
+    if (!authLoading) {
+      if (!isAuthenticated) {
+        router.push("/login?redirect=/dashboard/papers/new");
+      } else if (profile && !profile.onboarding_completed && profile.role !== "ADMIN") {
+        router.push("/onboarding");
+      }
+    }
+  }, [authLoading, isAuthenticated, profile, router]);
 
   // Form Fields
   const [title, setTitle] = useState("");

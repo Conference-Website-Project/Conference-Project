@@ -27,7 +27,7 @@ export default function CallForPapersPage() {
             Submit your full manuscript in IEEE/ACM PDF format by {config.importantDates[0].date}.
           </p>
         </div>
-        <Link href="/register">
+        <Link href="/dashboard/papers/new">
           <Button variant="gold" size="md" rightIcon={<ArrowRight className="w-4 h-4" />}>
             Submit Paper Now
           </Button>
