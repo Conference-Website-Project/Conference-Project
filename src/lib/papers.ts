@@ -136,6 +136,25 @@ export async function fetchAllPapersAdmin(conferenceId: string = DEFAULT_CONFERE
 }
 
 /**
+ * Helper to log and format complete Supabase Storage errors (message, name, statusCode)
+ */
+function formatStorageError(error: any): string {
+  if (!error) return "Unknown storage error";
+  const message = error.message || "Unknown error";
+  const name = error.name || "StorageError";
+  const statusCode = error.statusCode || error.status || "N/A";
+
+  console.error("Supabase Storage Error Details:", {
+    message,
+    name,
+    statusCode,
+    rawError: error,
+  });
+
+  return `${message} (Error: ${name}, Status: ${statusCode})`;
+}
+
+/**
  * Submit a new research paper with manuscript PDF upload
  */
 export async function submitPaper(
@@ -173,10 +192,10 @@ export async function submitPaper(
     });
 
   if (uploadError) {
-    console.error("Storage upload error:", uploadError.message);
+    const errorDetail = formatStorageError(uploadError);
     return { 
       paper: null, 
-      error: `Manuscript upload failed: ${uploadError.message}. Make sure the file is a valid PDF under 10MB.` 
+      error: `Manuscript upload failed: ${errorDetail}. Make sure the file is a valid PDF under 10MB.` 
     };
   }
 
@@ -285,7 +304,8 @@ export async function updatePaperParticipant(
       });
 
     if (uploadError) {
-      return { paper: null, error: `Failed to upload replacement manuscript: ${uploadError.message}` };
+      const errorDetail = formatStorageError(uploadError);
+      return { paper: null, error: `Failed to upload replacement manuscript: ${errorDetail}` };
     }
   }
 
