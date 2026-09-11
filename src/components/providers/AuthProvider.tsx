@@ -52,18 +52,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (profileData) {
           setProfile(profileData as Profile);
         } else {
-          setProfile({
+          // Profile is missing from DB! Upsert default profile for authenticated user into public.profiles
+          const fullName =
+            session.user.user_metadata?.full_name ||
+            session.user.user_metadata?.name ||
+            session.user.email?.split("@")[0] ||
+            "Participant User";
+
+          const defaultProfile: Partial<Profile> = {
             id: session.user.id,
-            full_name: session.user.user_metadata?.full_name || session.user.email?.split("@")[0] || "User",
+            full_name: fullName,
             email: session.user.email || "",
             institution: session.user.user_metadata?.institution || "",
             country: session.user.user_metadata?.country || "India",
-            role: "PARTICIPANT",
+            role: "PARTICIPANT" as UserRole,
             onboarding_completed: false,
             participation_type: "DELEGATE",
-            created_at: session.user.created_at,
-            updated_at: new Date().toISOString(),
-          });
+          };
+
+          const { data: upsertedProfile } = await supabase
+            .from("profiles")
+            .upsert(defaultProfile, { onConflict: "id" })
+            .select("*")
+            .single();
+
+          setProfile((upsertedProfile as Profile) || (defaultProfile as Profile));
         }
       } else {
         setUser(null);
@@ -94,6 +107,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           if (profileData) {
             setProfile(profileData as Profile);
+          } else {
+            const fullName =
+              session.user.user_metadata?.full_name ||
+              session.user.user_metadata?.name ||
+              session.user.email?.split("@")[0] ||
+              "Participant User";
+
+            const defaultProfile: Partial<Profile> = {
+              id: session.user.id,
+              full_name: fullName,
+              email: session.user.email || "",
+              institution: session.user.user_metadata?.institution || "",
+              country: session.user.user_metadata?.country || "India",
+              role: "PARTICIPANT" as UserRole,
+              onboarding_completed: false,
+              participation_type: "DELEGATE",
+            };
+
+            const { data: upsertedProfile } = await supabase
+              .from("profiles")
+              .upsert(defaultProfile, { onConflict: "id" })
+              .select("*")
+              .single();
+
+            setProfile((upsertedProfile as Profile) || (defaultProfile as Profile));
           }
         } else {
           setUser(null);

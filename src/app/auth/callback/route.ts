@@ -30,11 +30,38 @@ export async function GET(request: Request) {
 
     if (!error && sessionData.user) {
       // Check if profile exists and if onboarding is completed
-      const { data: profile } = await supabase
+      const { data: existingProfile } = await supabase
         .from("profiles")
         .select("onboarding_completed, role")
         .eq("id", sessionData.user.id)
         .single();
+
+      let profile = existingProfile;
+
+      if (!profile) {
+        const fullName =
+          sessionData.user.user_metadata?.full_name ||
+          sessionData.user.user_metadata?.name ||
+          sessionData.user.email?.split("@")[0] ||
+          "Participant User";
+
+        const { data: newProfile } = await supabase
+          .from("profiles")
+          .upsert({
+            id: sessionData.user.id,
+            full_name: fullName,
+            email: sessionData.user.email || "",
+            institution: sessionData.user.user_metadata?.institution || "",
+            country: sessionData.user.user_metadata?.country || "India",
+            role: "PARTICIPANT",
+            onboarding_completed: false,
+            participation_type: "DELEGATE",
+          }, { onConflict: "id" })
+          .select("onboarding_completed, role")
+          .single();
+
+        profile = newProfile;
+      }
 
       if (profile) {
         if (!profile.onboarding_completed && profile.role !== "ADMIN") {
@@ -43,7 +70,6 @@ export async function GET(request: Request) {
         return NextResponse.redirect(`${origin}${next}`);
       }
 
-      // Default to onboarding if profile row was just created
       return NextResponse.redirect(`${origin}/onboarding`);
     }
   }
