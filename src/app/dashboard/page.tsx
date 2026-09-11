@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { defaultConferenceConfig } from "@/config/conference";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
@@ -10,27 +10,49 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadingState } from "@/components/ui/LoadingState";
+import { Registration, Payment } from "@/types/database";
+import { fetchUserRegistrationData, calculateRegistrationFee } from "@/lib/payments";
+import { RegistrationCheckout } from "@/components/payments/RegistrationCheckout";
+import { PaymentHistory } from "@/components/payments/PaymentHistory";
+import { ReceiptModal } from "@/components/payments/ReceiptModal";
 import { 
   FileText, 
   User, 
   CreditCard, 
   Plus, 
-  Upload, 
   CheckCircle2, 
   Clock, 
   LogOut, 
   ShieldCheck, 
   Building2, 
   ArrowRight,
-  ShieldAlert
+  ShieldAlert,
+  Receipt
 } from "lucide-react";
 
-export default function ParticipantDashboardPage() {
+function DashboardContent() {
   const { profile, loading: authLoading, isAuthenticated, isAdmin, signOut } = useAuth();
-  const [activeTab, setActiveTab] = useState<"overview" | "papers" | "registration" | "payments">("overview");
+  const searchParams = useSearchParams();
   const router = useRouter();
 
+  const [activeTab, setActiveTab] = useState<"overview" | "papers" | "registration" | "payments">("overview");
+  const [registration, setRegistration] = useState<Registration | null>(null);
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [loadingData, setLoadingData] = useState<boolean>(true);
+
+  // Receipt Modal State
+  const [receiptPayment, setReceiptPayment] = useState<Payment | null>(null);
+  const [isReceiptOpen, setIsReceiptOpen] = useState<boolean>(false);
+
   const config = defaultConferenceConfig;
+
+  // Handle URL query parameter ?tab=registration etc.
+  useEffect(() => {
+    const tabParam = searchParams.get("tab");
+    if (tabParam && ["overview", "papers", "registration", "payments"].includes(tabParam)) {
+      setActiveTab(tabParam as any);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (!authLoading) {
@@ -41,6 +63,36 @@ export default function ParticipantDashboardPage() {
       }
     }
   }, [isAuthenticated, profile, authLoading, router]);
+
+  const loadRegistrationData = React.useCallback(async () => {
+    if (profile?.id) {
+      setLoadingData(true);
+      const { registration: reg, payments: payList } = await fetchUserRegistrationData(profile.id);
+      setRegistration(reg);
+      setPayments(payList);
+      setLoadingData(false);
+    }
+  }, [profile?.id]);
+
+  useEffect(() => {
+    if (profile?.id) {
+      loadRegistrationData();
+    }
+  }, [profile?.id, loadRegistrationData]);
+
+  const handleOpenReceipt = (paymentToOpen?: Payment) => {
+    if (paymentToOpen) {
+      setReceiptPayment(paymentToOpen);
+    } else {
+      const successfulPay = payments.find((p) => p.status === "SUCCESSFUL");
+      if (successfulPay) {
+        setReceiptPayment(successfulPay);
+      } else if (payments.length > 0) {
+        setReceiptPayment(payments[0]);
+      }
+    }
+    setIsReceiptOpen(true);
+  };
 
   if (authLoading || !profile) {
     return (
@@ -105,8 +157,16 @@ export default function ParticipantDashboardPage() {
         {[
           { id: "overview", label: "Dashboard Overview", icon: <User className="w-4 h-4" /> },
           { id: "papers", label: "My Papers", icon: <FileText className="w-4 h-4" /> },
-          { id: "registration", label: "My Registration", icon: <CheckCircle2 className="w-4 h-4" /> },
-          { id: "payments", label: "Payment Status", icon: <CreditCard className="w-4 h-4" /> },
+          { 
+            id: "registration", 
+            label: registration?.is_paid ? "Registration (Confirmed)" : "My Registration", 
+            icon: <CheckCircle2 className={`w-4 h-4 ${registration?.is_paid ? "text-emerald-500" : ""}`} /> 
+          },
+          { 
+            id: "payments", 
+            label: `Payment Status (${payments.filter(p => p.status === "SUCCESSFUL").length > 0 ? "Paid" : "Pending"})`, 
+            icon: <CreditCard className="w-4 h-4" /> 
+          },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -220,20 +280,50 @@ export default function ParticipantDashboardPage() {
             </Card>
 
             {/* Registration Status */}
-            <Card bordered accentBorder="gold">
+            <Card bordered accentBorder={registration?.is_paid ? "navy" : "gold"}>
               <CardHeader>
-                <CardTitle>My Registration</CardTitle>
+                <div className="flex justify-between items-center">
+                  <CardTitle>My Registration</CardTitle>
+                  <Badge variant={registration?.is_paid ? "gold" : "outline"}>
+                    {registration?.is_paid ? "CONFIRMED" : "UNPAID"}
+                  </Badge>
+                </div>
               </CardHeader>
               <CardContent className="space-y-3 text-xs">
-                <div className="p-3 bg-amber-50/60 border border-amber-200 rounded text-amber-900">
-                  <span className="font-bold block">Status: Unregistered</span>
-                  <span>Select your registration category to confirm delegate attendance.</span>
-                </div>
-                <Link href="/registration">
-                  <Button variant="gold" size="sm" className="w-full justify-center">
-                    View Registration Fees
-                  </Button>
-                </Link>
+                {registration?.is_paid ? (
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded text-emerald-900 space-y-2">
+                    <span className="font-bold block flex items-center gap-1 text-emerald-800">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Delegate Admission Confirmed
+                    </span>
+                    <p className="text-slate-600">
+                      Paid: <strong className="text-slate-900">₹ {registration.amount_due.toLocaleString("en-IN")}</strong>
+                    </p>
+                    <div className="pt-1 flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleOpenReceipt()}
+                        className="w-full justify-center bg-white"
+                        leftIcon={<Receipt className="w-3.5 h-3.5" />}
+                      >
+                        Print Receipt
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-3 bg-amber-50/60 border border-amber-200 rounded text-amber-900 space-y-2">
+                    <span className="font-bold block">Status: Registration Incomplete</span>
+                    <p className="text-slate-600">Select your delegate category to confirm registration and pay conference fee.</p>
+                    <Button
+                      variant="gold"
+                      size="sm"
+                      onClick={() => setActiveTab("registration")}
+                      className="w-full justify-center"
+                    >
+                      Complete Registration
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -262,40 +352,45 @@ export default function ParticipantDashboardPage() {
 
       {/* TAB 3: REGISTRATION */}
       {activeTab === "registration" && (
-        <Card bordered accentBorder="gold">
-          <CardHeader>
-            <CardTitle>Delegate Registration</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <EmptyState
-              title="You Have Not Registered Yet"
-              description="Complete your delegate category selection to generate invoice details."
-              action={
-                <Link href="/registration">
-                  <Button variant="gold" size="sm">
-                    Select Category & Register
-                  </Button>
-                </Link>
-              }
-            />
-          </CardContent>
-        </Card>
+        <RegistrationCheckout
+          profile={profile}
+          initialRegistration={registration}
+          onPaymentCompleted={loadRegistrationData}
+          onOpenReceipt={() => handleOpenReceipt()}
+        />
       )}
 
       {/* TAB 4: PAYMENTS */}
       {activeTab === "payments" && (
-        <Card bordered accentBorder="crimson">
-          <CardHeader>
-            <CardTitle>Payment Transactions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <EmptyState
-              title="No Payments Yet"
-              description="Once registration fees are paid via Razorpay, transaction receipts will be logged here."
-            />
-          </CardContent>
-        </Card>
+        <PaymentHistory
+          payments={payments}
+          category={registration?.category}
+          onViewReceipt={(payment) => handleOpenReceipt(payment)}
+        />
       )}
+
+      {/* Official Receipt Modal */}
+      <ReceiptModal
+        isOpen={isReceiptOpen}
+        onClose={() => setIsReceiptOpen(false)}
+        payment={receiptPayment}
+        registration={registration}
+        profile={profile}
+      />
     </div>
+  );
+}
+
+export default function ParticipantDashboardPage() {
+  return (
+    <React.Suspense
+      fallback={
+        <div className="max-w-7xl mx-auto px-4 py-16">
+          <LoadingState message="Loading participant dashboard..." />
+        </div>
+      }
+    >
+      <DashboardContent />
+    </React.Suspense>
   );
 }

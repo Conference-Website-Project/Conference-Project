@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { fetchAllProfiles } from "@/lib/auth";
 import { defaultConferenceConfig } from "@/config/conference";
+import { createClient as createBrowserClient } from "@/lib/supabase/client";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -24,12 +25,18 @@ import {
   LogOut, 
   Building2,
   ArrowRight,
-  ShieldAlert
+  ShieldAlert,
+  Clock,
+  XCircle,
+  Receipt
 } from "lucide-react";
 
 export default function AdminDashboardPage() {
   const { profile, isAdmin, isAuthenticated, loading: authLoading, signOut } = useAuth();
   const [totalUsers, setTotalUsers] = useState<number>(0);
+  const [registrations, setRegistrations] = useState<any[]>([]);
+  const [payments, setPayments] = useState<any[]>([]);
+  const [loadingStats, setLoadingStats] = useState<boolean>(true);
 
   const [activeTab, setActiveTab] = useState<
     "dashboard" | "conference" | "participants" | "papers" | "registrations" | "payments" | "speakers" | "committee" | "announcements" | "settings"
@@ -50,9 +57,55 @@ export default function AdminDashboardPage() {
 
   useEffect(() => {
     async function loadStats() {
-      const data = await fetchAllProfiles();
-      setTotalUsers(data.length);
+      setLoadingStats(true);
+      const supabase = createBrowserClient();
+
+      // 1. Fetch profiles
+      const userList = await fetchAllProfiles();
+      setTotalUsers(userList.length);
+
+      // 2. Fetch registrations
+      const { data: regData } = await supabase
+        .from("registrations")
+        .select(`
+          *,
+          profile:profiles!registrations_user_id_fkey(*)
+        `)
+        .order("created_at", { ascending: false });
+
+      if (regData) {
+        setRegistrations(regData);
+      } else {
+        // Fallback without join in case relationship name varies
+        const { data: fallbackReg } = await supabase
+          .from("registrations")
+          .select("*")
+          .order("created_at", { ascending: false });
+        setRegistrations(fallbackReg || []);
+      }
+
+      // 3. Fetch payments
+      const { data: payData } = await supabase
+        .from("payments")
+        .select(`
+          *,
+          profile:profiles!payments_user_id_fkey(*)
+        `)
+        .order("created_at", { ascending: false });
+
+      if (payData) {
+        setPayments(payData);
+      } else {
+        const { data: fallbackPay } = await supabase
+          .from("payments")
+          .select("*")
+          .order("created_at", { ascending: false });
+        setPayments(fallbackPay || []);
+      }
+
+      setLoadingStats(false);
     }
+
     if (isAdmin) {
       loadStats();
     }
@@ -81,13 +134,20 @@ export default function AdminDashboardPage() {
     );
   }
 
+  // Calculate payment totals
+  const successfulPayments = payments.filter((p) => p.status === "SUCCESSFUL");
+  const pendingPayments = payments.filter((p) => p.status === "PENDING");
+  const failedPayments = payments.filter((p) => p.status === "FAILED");
+  const totalRevenue = successfulPayments.reduce((acc, p) => acc + Number(p.amount || 0), 0);
+  const confirmedRegistrations = registrations.filter((r) => r.is_paid);
+
   const sidebarItems = [
     { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard className="w-4 h-4" /> },
     { id: "participants", label: "Participants", icon: <Users className="w-4 h-4" />, count: totalUsers },
-    { id: "conference", label: "Conference Setup", icon: <Building2 className="w-4 h-4" /> },
+    { id: "registrations", label: "Registrations", icon: <CheckCircle2 className="w-4 h-4" />, count: registrations.length },
+    { id: "payments", label: "Payments", icon: <CreditCard className="w-4 h-4" />, count: payments.length },
     { id: "papers", label: "Paper Submissions", icon: <FileText className="w-4 h-4" /> },
-    { id: "registrations", label: "Registrations", icon: <CheckCircle2 className="w-4 h-4" /> },
-    { id: "payments", label: "Payments", icon: <CreditCard className="w-4 h-4" /> },
+    { id: "conference", label: "Conference Setup", icon: <Building2 className="w-4 h-4" /> },
     { id: "speakers", label: "Keynote Speakers", icon: <Mic className="w-4 h-4" /> },
     { id: "committee", label: "Committee", icon: <Award className="w-4 h-4" /> },
     { id: "announcements", label: "Announcements", icon: <Megaphone className="w-4 h-4" /> },
@@ -170,6 +230,7 @@ export default function AdminDashboardPage() {
 
         {/* Main Content Area */}
         <main className="flex-1 p-6 lg:p-8 space-y-8 overflow-y-auto">
+          {/* TAB: DASHBOARD OVERVIEW */}
           {activeTab === "dashboard" && (
             <div className="space-y-8">
               <div>
@@ -192,6 +253,36 @@ export default function AdminDashboardPage() {
                   </CardContent>
                 </Card>
 
+                <Card bordered accentBorder="navy" className="hover:border-slate-300 transition-all cursor-pointer" onClick={() => setActiveTab("registrations")}>
+                  <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                    <div>
+                      <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Registrations</span>
+                      <CardTitle className="text-3xl font-bold font-serif text-academic-blue mt-1">
+                        {confirmedRegistrations.length} <span className="text-xs font-normal text-slate-400">/ {registrations.length}</span>
+                      </CardTitle>
+                    </div>
+                    <ArrowRight className="w-5 h-5 text-academic-blue" />
+                  </CardHeader>
+                  <CardContent>
+                    <span className="text-xs text-slate-500">{confirmedRegistrations.length} Confirmed Paid →</span>
+                  </CardContent>
+                </Card>
+
+                <Card bordered accentBorder="crimson" className="hover:border-slate-300 transition-all cursor-pointer" onClick={() => setActiveTab("payments")}>
+                  <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                    <div>
+                      <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Revenue</span>
+                      <CardTitle className="text-3xl font-bold font-serif text-academic-accent mt-1">
+                        ₹ {totalRevenue.toLocaleString("en-IN")}
+                      </CardTitle>
+                    </div>
+                    <ArrowRight className="w-5 h-5 text-red-600" />
+                  </CardHeader>
+                  <CardContent>
+                    <span className="text-xs text-slate-500">From {successfulPayments.length} Paid Delegates →</span>
+                  </CardContent>
+                </Card>
+
                 <Card bordered accentBorder="navy" className="hover:border-slate-300 transition-all cursor-pointer" onClick={() => router.push("/admin/papers")}>
                   <CardHeader className="pb-2 flex flex-row items-center justify-between">
                     <div>
@@ -204,26 +295,31 @@ export default function AdminDashboardPage() {
                     <span className="text-xs text-slate-500">View All Submissions →</span>
                   </CardContent>
                 </Card>
+              </div>
 
-                <Card bordered accentBorder="navy">
-                  <CardHeader className="pb-2">
-                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Registrations</span>
-                    <CardTitle className="text-3xl font-bold font-serif text-academic-blue mt-1">0</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <span className="text-xs text-slate-500">Confirmed Attendees</span>
-                  </CardContent>
-                </Card>
-
-                <Card bordered accentBorder="crimson">
-                  <CardHeader className="pb-2">
-                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Revenue</span>
-                    <CardTitle className="text-3xl font-bold font-serif text-academic-accent mt-1">₹ 0</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <span className="text-xs text-slate-500">Razorpay Transaction Logs</span>
-                  </CardContent>
-                </Card>
+              {/* Payment Summary Quick Breakdown */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="p-4 bg-white border border-slate-200 rounded-md shadow-subtle flex items-center justify-between">
+                  <div>
+                    <span className="text-xs text-slate-500 block">Successful Payments</span>
+                    <span className="text-xl font-bold font-serif text-emerald-700">{successfulPayments.length}</span>
+                  </div>
+                  <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+                </div>
+                <div className="p-4 bg-white border border-slate-200 rounded-md shadow-subtle flex items-center justify-between">
+                  <div>
+                    <span className="text-xs text-slate-500 block">Pending Invoices</span>
+                    <span className="text-xl font-bold font-serif text-amber-700">{pendingPayments.length}</span>
+                  </div>
+                  <Clock className="w-6 h-6 text-amber-600" />
+                </div>
+                <div className="p-4 bg-white border border-slate-200 rounded-md shadow-subtle flex items-center justify-between">
+                  <div>
+                    <span className="text-xs text-slate-500 block">Failed / Cancelled</span>
+                    <span className="text-xl font-bold font-serif text-red-700">{failedPayments.length}</span>
+                  </div>
+                  <XCircle className="w-6 h-6 text-red-500" />
+                </div>
               </div>
 
               {/* Quick Actions */}
@@ -244,18 +340,190 @@ export default function AdminDashboardPage() {
 
                 <Card bordered accentBorder="gold">
                   <CardHeader>
-                    <CardTitle>Security & Role Policy</CardTitle>
+                    <CardTitle>Security & Payment Policy</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-2 text-xs text-slate-700">
-                    <p className="font-semibold text-academic-navy">Row Level Security (RLS) Active</p>
-                    <p>Participants can only access their own submissions and profiles. Admin role elevation is strictly guarded on the database side.</p>
+                    <p className="font-semibold text-academic-navy">Server-Enforced Payment Gateway Active</p>
+                    <p>All Razorpay transactions are cryptographically verified with HMAC-SHA256 signatures before status promotion. Direct frontend updates to payment statuses are prevented by PostgreSQL Row Level Security.</p>
                   </CardContent>
                 </Card>
               </div>
             </div>
           )}
 
-          {activeTab !== "dashboard" && (
+          {/* TAB: REGISTRATIONS */}
+          {activeTab === "registrations" && (
+            <Card bordered accentBorder="navy" className="shadow-sm">
+              <CardHeader className="flex flex-row items-center justify-between border-b border-slate-200">
+                <div>
+                  <CardTitle>Conference Delegate Registrations</CardTitle>
+                  <p className="text-xs text-slate-500 mt-0.5">List of all attendee and author registration records</p>
+                </div>
+                <Badge variant="navy">{registrations.length} Total</Badge>
+              </CardHeader>
+              <CardContent className="p-0 overflow-x-auto">
+                {registrations.length === 0 ? (
+                  <div className="p-8">
+                    <EmptyState
+                      title="No Registrations Logged Yet"
+                      description="Participant registrations will populate here once users select categories and initiate checkout."
+                    />
+                  </div>
+                ) : (
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200 uppercase text-[10px] tracking-wider">
+                      <tr>
+                        <th className="px-4 py-3">Date</th>
+                        <th className="px-4 py-3">Delegate / User ID</th>
+                        <th className="px-4 py-3">Category</th>
+                        <th className="px-4 py-3">Amount</th>
+                        <th className="px-4 py-3">Paper Linked</th>
+                        <th className="px-4 py-3">Payment Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200 text-slate-700">
+                      {registrations.map((reg) => (
+                        <tr key={reg.id} className="hover:bg-slate-50/60">
+                          <td className="px-4 py-3 whitespace-nowrap text-slate-500">
+                            {new Date(reg.created_at).toLocaleDateString("en-IN", {
+                              day: "2-digit",
+                              month: "short",
+                              year: "numeric",
+                            })}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="font-bold text-slate-900 block">
+                              {reg.profile?.full_name || reg.user_id.slice(0, 8)}
+                            </span>
+                            <span className="text-[11px] text-slate-500 font-mono">
+                              {reg.profile?.email || reg.user_id}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 font-medium text-academic-navy">
+                            <Badge variant={reg.category === "FACULTY" ? "gold" : "navy"}>
+                              {reg.category}
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-3 font-serif font-bold text-slate-900">
+                            ₹ {Number(reg.amount_due).toLocaleString("en-IN")}
+                          </td>
+                          <td className="px-4 py-3 font-mono text-[11px] text-slate-500">
+                            {reg.paper_id ? `${reg.paper_id.slice(0, 8)}...` : "None"}
+                          </td>
+                          <td className="px-4 py-3">
+                            {reg.is_paid ? (
+                              <span className="inline-flex items-center gap-1 text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded text-[11px] font-semibold">
+                                <CheckCircle2 className="w-3 h-3" /> PAID
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded text-[11px] font-semibold">
+                                <Clock className="w-3 h-3" /> UNPAID
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* TAB: PAYMENTS */}
+          {activeTab === "payments" && (
+            <Card bordered accentBorder="crimson" className="shadow-sm">
+              <CardHeader className="flex flex-row items-center justify-between border-b border-slate-200">
+                <div>
+                  <CardTitle>Razorpay Payment Transaction Logs</CardTitle>
+                  <p className="text-xs text-slate-500 mt-0.5">All online payment attempts, signatures, and receipts</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant="gold">Revenue: ₹ {totalRevenue.toLocaleString("en-IN")}</Badge>
+                  <Badge variant="navy">{payments.length} Records</Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="p-0 overflow-x-auto">
+                {payments.length === 0 ? (
+                  <div className="p-8">
+                    <EmptyState
+                      title="No Payment Records Logged"
+                      description="Online transaction attempts and receipts will appear here automatically."
+                    />
+                  </div>
+                ) : (
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200 uppercase text-[10px] tracking-wider">
+                      <tr>
+                        <th className="px-4 py-3">Date</th>
+                        <th className="px-4 py-3">Delegate</th>
+                        <th className="px-4 py-3">Amount</th>
+                        <th className="px-4 py-3">Payment ID</th>
+                        <th className="px-4 py-3">Order ID</th>
+                        <th className="px-4 py-3">Receipt No</th>
+                        <th className="px-4 py-3">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200 text-slate-700">
+                      {payments.map((pay) => (
+                        <tr key={pay.id} className="hover:bg-slate-50/60">
+                          <td className="px-4 py-3 whitespace-nowrap text-slate-500">
+                            {new Date(pay.created_at).toLocaleDateString("en-IN", {
+                              day: "2-digit",
+                              month: "short",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="font-bold text-slate-900 block">
+                              {pay.profile?.full_name || pay.user_id.slice(0, 8)}
+                            </span>
+                            <span className="text-[11px] text-slate-500 font-mono">
+                              {pay.profile?.email || pay.user_id}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 font-serif font-bold text-slate-900">
+                            ₹ {Number(pay.amount).toLocaleString("en-IN")}
+                          </td>
+                          <td className="px-4 py-3 font-mono text-[11px] text-slate-700 whitespace-nowrap">
+                            {pay.gateway_payment_id || pay.transaction_reference || "—"}
+                          </td>
+                          <td className="px-4 py-3 font-mono text-[11px] text-slate-500 whitespace-nowrap">
+                            {pay.razorpay_order_id ? `${pay.razorpay_order_id.slice(0, 14)}...` : "—"}
+                          </td>
+                          <td className="px-4 py-3 font-mono text-[11px] text-amber-800 font-bold whitespace-nowrap">
+                            {pay.receipt_number || "—"}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            {pay.status === "SUCCESSFUL" && (
+                              <span className="inline-flex items-center gap-1 text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded text-[11px] font-semibold">
+                                <CheckCircle2 className="w-3 h-3" /> SUCCESSFUL
+                              </span>
+                            )}
+                            {pay.status === "PENDING" && (
+                              <span className="inline-flex items-center gap-1 text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded text-[11px] font-semibold">
+                                <Clock className="w-3 h-3" /> PENDING
+                              </span>
+                            )}
+                            {pay.status === "FAILED" && (
+                              <span className="inline-flex items-center gap-1 text-red-700 bg-red-50 border border-red-200 px-2 py-0.5 rounded text-[11px] font-semibold">
+                                <XCircle className="w-3 h-3" /> FAILED
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* TAB: OTHER FALLBACKS */}
+          {activeTab !== "dashboard" && activeTab !== "registrations" && activeTab !== "payments" && (
             <Card bordered accentBorder="navy">
               <CardHeader>
                 <CardTitle className="capitalize">{activeTab} Management</CardTitle>

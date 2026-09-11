@@ -181,6 +181,9 @@ export interface Payment {
   transaction_reference?: string;
   gateway_payment_id?: string;
   payment_method?: string;
+  razorpay_order_id?: string;
+  razorpay_signature?: string;
+  receipt_number?: string;
   created_at: string;
 }
 

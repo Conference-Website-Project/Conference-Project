@@ -49,7 +49,7 @@ export default function RegistrationPage() {
                 </li>
               </ul>
               <div className="pt-2">
-                <Link href="/register">
+                <Link href="/dashboard?tab=registration">
                   <Button variant={idx === 1 ? "gold" : "primary"} size="sm" className="w-full justify-center">
                     Register Category
                   </Button>
