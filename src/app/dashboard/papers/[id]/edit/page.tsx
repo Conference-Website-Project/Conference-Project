@@ -411,10 +411,6 @@ export default function EditPaperPage() {
                       setErrorMessage("Only PDF (.pdf) files are allowed.");
                       return;
                     }
-                    if (sel.size > 10 * 1024 * 1024) {
-                      setErrorMessage("File exceeds 10 MB limit.");
-                      return;
-                    }
                     setErrorMessage("");
                     setFile(sel);
                   }

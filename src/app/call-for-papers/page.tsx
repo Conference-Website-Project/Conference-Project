@@ -1,14 +1,46 @@
-import React from "react";
+"use client";
+
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { defaultConferenceConfig } from "@/config/conference";
+import { fetchConferenceTracks } from "@/lib/papers";
+import { ConferenceTrack } from "@/types/database";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
-import { FileText, CheckCircle2, AlertCircle, ArrowRight, Download } from "lucide-react";
+import { FileText, CheckCircle2, AlertCircle, ArrowRight, Download, BookOpen } from "lucide-react";
 
 export default function CallForPapersPage() {
   const config = defaultConferenceConfig;
+  const [dbTracks, setDbTracks] = useState<ConferenceTrack[]>([]);
+  const [loadingTracks, setLoadingTracks] = useState(true);
+
+  useEffect(() => {
+    async function loadTracks() {
+      setLoadingTracks(true);
+      const { tracks } = await fetchConferenceTracks();
+      if (tracks && tracks.length > 0) {
+        setDbTracks(tracks);
+      } else {
+        // Fallback display
+        setDbTracks(
+          config.tracks.map((t) => ({
+            id: t.id,
+            conference_id: config.id,
+            code: t.code,
+            name: t.name,
+            description: t.description,
+            created_at: new Date().toISOString(),
+          }))
+        );
+      }
+      setLoadingTracks(false);
+    }
+    loadTracks();
+  }, [config]);
+
+  const displayTracks = dbTracks;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16 space-y-12">
@@ -36,10 +68,14 @@ export default function CallForPapersPage() {
 
       {/* Research Tracks */}
       <div className="space-y-6">
-        <h3 className="font-serif font-bold text-xl text-academic-navy">Conference Research Tracks</h3>
+        <div className="flex items-center justify-between">
+          <h3 className="font-serif font-bold text-xl text-academic-navy">Conference Research Tracks</h3>
+          <span className="text-xs font-mono text-slate-500">Database-Driven Tracks</span>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {config.tracks.map((track) => (
-            <Card key={track.id} id={track.code} bordered accentBorder="navy">
+          {displayTracks.map((track) => (
+            <Card key={track.id || track.code} id={track.code} bordered accentBorder="navy">
               <CardHeader className="flex items-center justify-between">
                 <CardTitle>{track.name}</CardTitle>
                 <Badge variant="navy">{track.code}</Badge>

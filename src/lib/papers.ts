@@ -164,7 +164,7 @@ export async function submitPaper(
   const supabase = createBrowserClient();
   const conferenceId = input.conference_id || DEFAULT_CONFERENCE_ID;
 
-  // 1. Strict File Validation (PDF Only, Max 10MB)
+  // 1. Strict File Validation (PDF Format Only)
   if (!input.file) {
     return { paper: null, error: "Please select a manuscript PDF file to upload." };
   }
@@ -172,11 +172,6 @@ export async function submitPaper(
   const isPdf = input.file.type === "application/pdf" || input.file.name.toLowerCase().endsWith(".pdf");
   if (!isPdf) {
     return { paper: null, error: "Invalid file format. Only PDF (.pdf) documents are accepted." };
-  }
-
-  const maxSizeBytes = 10 * 1024 * 1024; // 10 MB
-  if (input.file.size > maxSizeBytes) {
-    return { paper: null, error: "File size exceeds 10 MB limit. Please compress your manuscript PDF." };
   }
 
   // Generate deterministic unique paper UUID
@@ -195,7 +190,7 @@ export async function submitPaper(
     const errorDetail = formatStorageError(uploadError);
     return { 
       paper: null, 
-      error: `Manuscript upload failed: ${errorDetail}. Make sure the file is a valid PDF under 10MB.` 
+      error: `Manuscript upload failed: ${errorDetail}.` 
     };
   }
 
@@ -289,10 +284,6 @@ export async function updatePaperParticipant(
     const isPdf = input.file.type === "application/pdf" || input.file.name.toLowerCase().endsWith(".pdf");
     if (!isPdf) {
       return { paper: null, error: "Invalid file format. Only PDF (.pdf) documents are accepted." };
-    }
-
-    if (input.file.size > 10 * 1024 * 1024) {
-      return { paper: null, error: "File size exceeds 10 MB limit." };
     }
 
     manuscriptPath = `${existing.conference_id}/${userId}/${existing.id}/manuscript.pdf`;

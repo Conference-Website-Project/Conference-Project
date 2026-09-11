@@ -97,27 +97,27 @@ export const defaultConferenceConfig: ConferenceConfig = {
   tracks: [
     {
       id: "track-1",
-      code: "AI-ML",
+      code: "TRK-01",
       name: "Artificial Intelligence, Data Science & Machine Learning",
-      description: "Neural networks, deep learning, NLP, computer vision, and trustworthy AI applications.",
+      description: "Neural networks, deep learning, natural language processing, computer vision, trustworthy AI, and intelligent data-driven applications.",
     },
     {
       id: "track-2",
-      code: "SST",
+      code: "TRK-02",
       name: "Sustainable Systems & Clean Energy",
-      description: "Renewable energy grids, smart cities, eco-friendly materials, and carbon-neutral technologies.",
+      description: "Renewable energy systems, smart cities, eco-friendly materials, energy optimization, and carbon-neutral technologies.",
     },
     {
       id: "track-3",
-      code: "CNS",
-      name: "Cybersecurity, IoT & Network Systems",
-      description: "Cryptographic protocols, IoT security, distributed cloud computing, and 6G networking.",
+      code: "TRK-03",
+      name: "Cyber Security, Networks & Privacy",
+      description: "Cybersecurity, network security, privacy-preserving systems, secure computing, threat detection, and digital trust.",
     },
     {
       id: "track-4",
-      code: "ROB",
-      name: "Robotics, Automation & Embedded Hardware",
-      description: "Autonomous robotics, industrial IoT, VLSI systems, and cyber-physical infrastructure.",
+      code: "TRK-04",
+      name: "Intelligent Computing, IoT & Emerging Technologies",
+      description: "Internet of Things, edge computing, cloud computing, intelligent embedded systems, distributed computing, and emerging technologies.",
     },
   ],
   importantDates: [

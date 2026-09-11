@@ -219,10 +219,6 @@ export default function SubmitNewPaperPage() {
         setErrorMessage("Invalid file format. Only PDF (.pdf) documents are accepted.");
         return;
       }
-      if (file.size > 10 * 1024 * 1024) {
-        setErrorMessage("File size exceeds 10 MB limit.");
-        return;
-      }
     }
 
     setCurrentStep((prev) => Math.min(prev + 1, 5));
@@ -275,7 +271,7 @@ export default function SubmitNewPaperPage() {
           Submit Research Paper
         </h1>
         <p className="text-xs sm:text-sm text-slate-600 max-w-lg mx-auto">
-          Submit your manuscript to {defaultConferenceConfig.name}. PDF format only (Max 10 MB).
+          Submit your manuscript to {defaultConferenceConfig.name}. PDF format only.
         </p>
       </div>
 
@@ -553,7 +549,7 @@ export default function SubmitNewPaperPage() {
               <div className="border-b border-slate-100 pb-3">
                 <h3 className="text-lg font-serif font-bold text-academic-navy">Upload PDF Manuscript</h3>
                 <p className="text-xs text-slate-500">
-                  Upload your full paper manuscript strictly in PDF format (Maximum file size: 10 MB).
+                  Upload your full paper manuscript strictly in PDF format.
                 </p>
               </div>
 
@@ -567,10 +563,6 @@ export default function SubmitNewPaperPage() {
                       const selected = e.target.files[0];
                       if (!selected.name.toLowerCase().endsWith(".pdf") && selected.type !== "application/pdf") {
                         setErrorMessage("Invalid file. Only PDF (.pdf) files are allowed.");
-                        return;
-                      }
-                      if (selected.size > 10 * 1024 * 1024) {
-                        setErrorMessage("File exceeds 10 MB limit.");
                         return;
                       }
                       setErrorMessage("");
@@ -589,7 +581,7 @@ export default function SubmitNewPaperPage() {
                       Click to choose PDF file or drag and drop here
                     </span>
                     <span className="text-xs text-slate-500 block mt-1">
-                      Strictly PDF format (.pdf) • Maximum size 10 MB
+                      Strictly PDF format (.pdf)
                     </span>
                   </div>
                 </div>
