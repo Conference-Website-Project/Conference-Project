@@ -45,7 +45,7 @@ export async function fetchUserPapers(userId: string): Promise<PaperWithDetails[
       *,
       track:conference_tracks(*)
     `)
-    .or(`author_user_id.eq.${userId},submitted_by.eq.${userId}`)
+    .eq("author_user_id", userId)
     .order("submission_date", { ascending: false });
 
   if (error) {
@@ -68,8 +68,7 @@ export async function fetchPaperById(idOrPaperId: string): Promise<PaperWithDeta
     .from("papers")
     .select(`
       *,
-      track:conference_tracks(*),
-      submitter_profile:profiles!papers_submitted_by_fkey(*)
+      track:conference_tracks(*)
     `);
 
   if (isUuid) {
@@ -85,6 +84,17 @@ export async function fetchPaperById(idOrPaperId: string): Promise<PaperWithDeta
     return null;
   }
 
+  // Fetch submitter profile
+  let submitterProfile = undefined;
+  if (data.author_user_id) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("id, full_name, email, institution, country")
+      .eq("id", data.author_user_id)
+      .single();
+    if (profile) submitterProfile = profile;
+  }
+
   // Fetch author records for this paper
   const { data: authors } = await supabase
     .from("paper_authors")
@@ -94,6 +104,7 @@ export async function fetchPaperById(idOrPaperId: string): Promise<PaperWithDeta
 
   return {
     ...data,
+    submitter_profile: submitterProfile,
     authors: (authors || []) as PaperAuthor[],
   } as PaperWithDetails;
 }
@@ -121,7 +132,7 @@ export async function fetchAllPapersAdmin(conferenceId: string = DEFAULT_CONFERE
   if (!data || data.length === 0) return [];
 
   // Fetch submitter profiles
-  const submitterIds = Array.from(new Set(data.map(p => p.submitted_by || p.author_user_id).filter(Boolean)));
+  const submitterIds = Array.from(new Set(data.map(p => p.author_user_id).filter(Boolean)));
   const { data: profiles } = await supabase
     .from("profiles")
     .select("id, full_name, email, institution, country")
@@ -131,7 +142,7 @@ export async function fetchAllPapersAdmin(conferenceId: string = DEFAULT_CONFERE
 
   return data.map(paper => ({
     ...paper,
-    submitter_profile: profileMap.get(paper.submitted_by || paper.author_user_id),
+    submitter_profile: profileMap.get(paper.author_user_id),
   })) as PaperWithDetails[];
 }
 
@@ -194,18 +205,17 @@ export async function submitPaper(
     };
   }
 
-  // 3. Create Paper Record in PostgreSQL
+  // 3. Create Paper Record in PostgreSQL matching actual schema
   const newPaperRecord = {
     id: paperUuid,
     conference_id: conferenceId,
     track_id: input.track_id,
     author_user_id: userId,
-    submitted_by: userId,
     title: input.title.trim(),
     abstract: input.abstract.trim(),
     keywords: input.keywords,
+    file_url: manuscriptPath,
     manuscript_path: manuscriptPath,
-    file_url: manuscriptPath, // Backwards compatibility fallback
     status: "SUBMITTED" as PaperStatus,
     submission_date: new Date().toISOString(),
     updated_at: new Date().toISOString(),

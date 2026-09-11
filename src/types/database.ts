@@ -109,7 +109,6 @@ export interface Paper {
   conference_id: string;
   track_id: string;
   author_user_id: string;
-  submitted_by?: string;
   title: string;
   abstract: string;
   keywords: string[];
