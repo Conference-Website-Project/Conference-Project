@@ -15,7 +15,9 @@ const BUCKET_NAME = "paper-manuscripts";
 /**
  * Fetch available conference tracks for paper submission
  */
-export async function fetchConferenceTracks(conferenceId: string = DEFAULT_CONFERENCE_ID): Promise<ConferenceTrack[]> {
+export async function fetchConferenceTracks(
+  conferenceId: string = DEFAULT_CONFERENCE_ID
+): Promise<{ tracks: ConferenceTrack[]; error: string | null }> {
   const supabase = createBrowserClient();
   const { data, error } = await supabase
     .from("conference_tracks")
@@ -24,11 +26,11 @@ export async function fetchConferenceTracks(conferenceId: string = DEFAULT_CONFE
     .order("code", { ascending: true });
 
   if (error) {
-    console.error("Error fetching conference tracks:", error.message);
-    return [];
+    console.error("Error fetching conference tracks from Supabase:", error.message);
+    return { tracks: [], error: error.message };
   }
 
-  return data as ConferenceTrack[];
+  return { tracks: (data || []) as ConferenceTrack[], error: null };
 }
 
 /**

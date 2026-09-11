@@ -61,13 +61,21 @@ export default function SubmitNewPaperPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
+  const [trackLoadError, setTrackLoadError] = useState<string | null>(null);
+
   useEffect(() => {
     async function loadTracks() {
       setLoadingTracks(true);
-      const data = await fetchConferenceTracks();
-      setTracks(data);
-      if (data.length > 0) {
-        setSelectedTrackId(data[0].id);
+      setTrackLoadError(null);
+      const { tracks: loadedTracks, error } = await fetchConferenceTracks();
+      if (error) {
+        setTrackLoadError(error);
+        setTracks([]);
+      } else {
+        setTracks(loadedTracks);
+        if (loadedTracks.length > 0) {
+          setSelectedTrackId(loadedTracks[0].id);
+        }
       }
       setLoadingTracks(false);
     }
@@ -490,34 +498,52 @@ export default function SubmitNewPaperPage() {
                 </p>
               </div>
 
-              <div className="space-y-3">
-                {tracks.map((track) => (
-                  <div
-                    key={track.id}
-                    onClick={() => setSelectedTrackId(track.id)}
-                    className={`p-4 rounded-md border-2 cursor-pointer transition-all ${
-                      selectedTrackId === track.id
-                        ? "border-academic-blue bg-blue-50/50 shadow-sm"
-                        : "border-slate-200 hover:border-slate-300 bg-white"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs font-bold text-academic-blue bg-blue-100 px-2 py-0.5 rounded">
-                          {track.code}
-                        </span>
-                        <h4 className="font-serif font-bold text-academic-navy text-sm">{track.name}</h4>
+              {trackLoadError ? (
+                <div className="p-4 bg-red-50 border border-red-200 text-red-700 text-xs rounded-md space-y-1">
+                  <div className="font-bold flex items-center gap-1.5 text-sm">
+                    <AlertCircle className="w-4 h-4 text-red-600" />
+                    Unable to load conference tracks
+                  </div>
+                  <p>{trackLoadError}</p>
+                </div>
+              ) : tracks.length === 0 ? (
+                <div className="p-6 bg-slate-50 border border-slate-200 text-center rounded-md space-y-2">
+                  <BookOpen className="w-8 h-8 text-slate-400 mx-auto" />
+                  <h4 className="font-serif font-bold text-academic-navy text-sm">No Tracks Configured</h4>
+                  <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                    No conference tracks have been configured yet for this conference in the database.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {tracks.map((track) => (
+                    <div
+                      key={track.id}
+                      onClick={() => setSelectedTrackId(track.id)}
+                      className={`p-4 rounded-md border-2 cursor-pointer transition-all ${
+                        selectedTrackId === track.id
+                          ? "border-academic-blue bg-blue-50/50 shadow-sm"
+                          : "border-slate-200 hover:border-slate-300 bg-white"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-xs font-bold text-academic-blue bg-blue-100 px-2 py-0.5 rounded">
+                            {track.code}
+                          </span>
+                          <h4 className="font-serif font-bold text-academic-navy text-sm">{track.name}</h4>
+                        </div>
+                        {selectedTrackId === track.id && (
+                          <CheckCircle2 className="w-5 h-5 text-academic-blue shrink-0" />
+                        )}
                       </div>
-                      {selectedTrackId === track.id && (
-                        <CheckCircle2 className="w-5 h-5 text-academic-blue shrink-0" />
+                      {track.description && (
+                        <p className="text-xs text-slate-600 mt-1 pl-1">{track.description}</p>
                       )}
                     </div>
-                    {track.description && (
-                      <p className="text-xs text-slate-600 mt-1 pl-1">{track.description}</p>
-                    )}
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

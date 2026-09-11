@@ -51,7 +51,7 @@ export default function EditPaperPage() {
     async function loadData() {
       if (paperId) {
         setLoading(true);
-        const [paperData, trackData] = await Promise.all([
+        const [paperData, trackRes] = await Promise.all([
           fetchPaperById(paperId),
           fetchConferenceTracks(),
         ]);
@@ -75,7 +75,7 @@ export default function EditPaperPage() {
             }))
           );
         }
-        setTracks(trackData);
+        setTracks(trackRes.tracks || []);
         setLoading(false);
       }
     }
