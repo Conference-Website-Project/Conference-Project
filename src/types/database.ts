@@ -126,7 +126,6 @@ export interface PaperAuthor {
   author_name: string;
   author_email: string;
   affiliation: string;
-  designation?: string;
   is_corresponding: boolean;
   display_order: number;
   created_at?: string;

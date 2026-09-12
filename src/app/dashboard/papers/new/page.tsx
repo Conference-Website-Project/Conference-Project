@@ -90,7 +90,6 @@ export default function SubmitNewPaperPage() {
           author_name: profile.full_name || "",
           author_email: profile.email || "",
           affiliation: profile.institution || "",
-          designation: profile.designation || "",
           is_corresponding: true,
           display_order: 1,
         },
@@ -135,7 +134,6 @@ export default function SubmitNewPaperPage() {
         author_name: "",
         author_email: "",
         affiliation: "",
-        designation: "",
         is_corresponding: false,
         display_order: authors.length + 1,
       },
@@ -457,12 +455,6 @@ export default function SubmitNewPaperPage() {
                         required
                       />
 
-                      <Input
-                        label="Designation (Optional)"
-                        placeholder="e.g. Associate Professor"
-                        value={author.designation || ""}
-                        onChange={(e) => handleUpdateAuthor(index, "designation", e.target.value)}
-                      />
                     </div>
 
                     <div className="flex items-center gap-2 pt-1">

@@ -69,7 +69,6 @@ export default function EditPaperPage() {
               author_name: a.author_name,
               author_email: a.author_email,
               affiliation: a.affiliation,
-              designation: a.designation || "",
               is_corresponding: a.is_corresponding,
               display_order: a.display_order,
             }))
@@ -105,7 +104,6 @@ export default function EditPaperPage() {
         author_name: "",
         author_email: "",
         affiliation: "",
-        designation: "",
         is_corresponding: false,
         display_order: authors.length + 1,
       },
@@ -373,11 +371,6 @@ export default function EditPaperPage() {
                       label="Institution"
                       value={author.affiliation}
                       onChange={(e) => handleUpdateAuthor(index, "affiliation", e.target.value)}
-                    />
-                    <Input
-                      label="Designation"
-                      value={author.designation || ""}
-                      onChange={(e) => handleUpdateAuthor(index, "designation", e.target.value)}
                     />
                   </div>
                   <div className="flex items-center gap-2">

@@ -351,9 +351,6 @@ export default function AdminPaperDetailPage() {
                       )}
                     </div>
                     <span className="text-slate-600 block">{author.affiliation}</span>
-                    {author.designation && (
-                      <span className="text-slate-500 text-[11px] block">{author.designation}</span>
-                    )}
                   </div>
 
                   <span className="font-mono text-slate-500 text-[11px]">

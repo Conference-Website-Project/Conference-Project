@@ -272,16 +272,61 @@ export async function submitPaper(
     return { paper: null, error: `Database submission failed: ${paperDbError.message}` };
   }
 
-  // 4. Create Paper Authors Records
-  const authorRecords = input.authors.map((author, index) => ({
-    paper_id: createdPaper.id,
-    author_name: author.author_name.trim(),
-    author_email: author.author_email.trim(),
-    affiliation: author.affiliation.trim(),
-    designation: author.designation?.trim() || "",
-    is_corresponding: Boolean(author.is_corresponding),
-    display_order: index + 1,
-  }));
+  // 6. Create Paper Authors Records (matching exact public.paper_authors schema)
+  if (!input.authors || input.authors.length === 0) {
+    await supabase.from("papers").delete().eq("id", createdPaper.id);
+    await supabase.storage.from(BUCKET_NAME).remove([manuscriptPath]);
+    return { paper: null, error: "At least one author is required." };
+  }
+
+  // Validate non-empty fields
+  for (let i = 0; i < input.authors.length; i++) {
+    const author = input.authors[i];
+    const name = (author.author_name || (author as any).name || "").trim();
+    const email = (author.author_email || (author as any).email || "").trim();
+    const affiliation = (author.affiliation || "").trim();
+
+    if (!name) {
+      await supabase.from("papers").delete().eq("id", createdPaper.id);
+      await supabase.storage.from(BUCKET_NAME).remove([manuscriptPath]);
+      return { paper: null, error: `Author #${i + 1} name cannot be empty.` };
+    }
+    if (!email) {
+      await supabase.from("papers").delete().eq("id", createdPaper.id);
+      await supabase.storage.from(BUCKET_NAME).remove([manuscriptPath]);
+      return { paper: null, error: `Author #${i + 1} email cannot be empty.` };
+    }
+    if (!affiliation) {
+      await supabase.from("papers").delete().eq("id", createdPaper.id);
+      await supabase.storage.from(BUCKET_NAME).remove([manuscriptPath]);
+      return { paper: null, error: `Author #${i + 1} affiliation cannot be empty.` };
+    }
+  }
+
+  // Ensure exactly one author is marked is_corresponding = true
+  const correspondingIndices = input.authors
+    .map((a, idx) => (Boolean(a.is_corresponding || (a as any).isCorresponding) ? idx : -1))
+    .filter((idx) => idx !== -1);
+
+  const targetCorrespondingIdx = correspondingIndices.length > 0 ? correspondingIndices[0] : 0;
+
+  const authorRecords = input.authors.map((author, index) => {
+    const authorName = (author.author_name || (author as any).name || "").trim();
+    const authorEmail = (author.author_email || (author as any).email || "").trim();
+    const affiliation = (author.affiliation || "").trim();
+
+    return {
+      paper_id: createdPaper.id,
+      author_name: authorName,
+      author_email: authorEmail,
+      affiliation: affiliation,
+      is_corresponding: index === targetCorrespondingIdx,
+      display_order: index + 1,
+    };
+  });
+
+  console.log("=== FINAL PAPER AUTHORS INSERT PAYLOAD ===");
+  console.log(JSON.stringify(authorRecords, null, 2));
 
   const { data: createdAuthors, error: authorsDbError } = await supabase
     .from("paper_authors")
@@ -289,7 +334,7 @@ export async function submitPaper(
     .select();
 
   if (authorsDbError) {
-    console.error("Database authors creation error:", authorsDbError.message);
+    console.error("Database authors creation error:", authorsDbError.message, authorsDbError);
     // Cleanup paper and storage on author creation failure
     await supabase.from("papers").delete().eq("id", createdPaper.id);
     await supabase.storage.from(BUCKET_NAME).remove([manuscriptPath]);
@@ -379,11 +424,10 @@ export async function updatePaperParticipant(
 
     const authorRecords = input.authors.map((author, index) => ({
       paper_id: existing.id,
-      author_name: author.author_name.trim(),
-      author_email: author.author_email.trim(),
-      affiliation: author.affiliation.trim(),
-      designation: author.designation?.trim() || "",
-      is_corresponding: Boolean(author.is_corresponding),
+      author_name: (author.author_name || (author as any).name || "").trim(),
+      author_email: (author.author_email || (author as any).email || "").trim(),
+      affiliation: (author.affiliation || "").trim(),
+      is_corresponding: Boolean(author.is_corresponding || (author as any).isCorresponding),
       display_order: index + 1,
     }));
 
