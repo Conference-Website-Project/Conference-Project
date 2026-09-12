@@ -221,37 +221,56 @@ export async function completeOnboardingProfile(
 
   // 1. Get authenticated user
   const { data: authData, error: authError } = await supabase.auth.getUser();
-  const authUser = authData?.user;
-  const effectiveUserId = userId || authUser?.id;
-
-  if (!effectiveUserId) {
-    return { profile: null, error: "Authentication missing. User ID is null." };
+  if (authError || !authData?.user) {
+    return {
+      profile: null,
+      error: `Authentication failed: ${authError?.message || "User session not found."}`,
+    };
   }
 
-  const email = authUser?.email || "";
+  const user = authData.user;
+  const effectiveUserId = userId || user.id;
 
   // 2. Upsert into public.users first (satisfies foreign key papers.author_user_id -> public.users.id)
   const userPayload = {
     id: effectiveUserId,
     full_name: data.fullName.trim(),
-    email: email,
+    email: user.email || "",
     affiliation: data.institution.trim(),
     country: data.country.trim(),
     role: "PARTICIPANT" as UserRole,
-    updated_at: new Date().toISOString(),
   };
 
-  const { error: userUpsertError } = await supabase
+  const { data: upsertedUserData, error: userUpsertError } = await supabase
     .from("users")
-    .upsert(userPayload, { onConflict: "id" });
+    .upsert(userPayload, { onConflict: "id" })
+    .select()
+    .single();
 
   if (userUpsertError) {
-    console.error("Error upserting into public.users during onboarding:", userUpsertError.message);
-    return { profile: null, error: `Failed to save user record in database: ${userUpsertError.message}` };
+    console.error("Error upserting into public.users during onboarding:", {
+      message: userUpsertError.message,
+      details: userUpsertError.details,
+      hint: userUpsertError.hint,
+      code: userUpsertError.code,
+    });
+    const errDetails = [
+      userUpsertError.message,
+      userUpsertError.details && `Details: ${userUpsertError.details}`,
+      userUpsertError.hint && `Hint: ${userUpsertError.hint}`,
+      userUpsertError.code && `Code: ${userUpsertError.code}`,
+    ]
+      .filter(Boolean)
+      .join(" | ");
+
+    return {
+      profile: null,
+      error: `Failed to save user in public.users: ${errDetails}`,
+    };
   }
 
-  // 3. Update public.profiles table
-  const updates = {
+  // 3. Update public.profiles table only after public.users upsert succeeds
+  const profileUpdates = {
     full_name: data.fullName.trim(),
     institution: data.institution.trim(),
     designation: data.designation?.trim() || "",
@@ -264,7 +283,7 @@ export async function completeOnboardingProfile(
 
   const { data: updatedProfile, error: profileError } = await supabase
     .from("profiles")
-    .update(updates)
+    .update(profileUpdates)
     .eq("id", effectiveUserId)
     .select()
     .single();
@@ -275,9 +294,9 @@ export async function completeOnboardingProfile(
       .from("profiles")
       .upsert({
         id: effectiveUserId,
-        email: email,
+        email: user.email || "",
         role: "PARTICIPANT",
-        ...updates,
+        ...profileUpdates,
       }, { onConflict: "id" })
       .select()
       .single();

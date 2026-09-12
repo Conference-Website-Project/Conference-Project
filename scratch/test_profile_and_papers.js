@@ -13,34 +13,36 @@ envContent.split("\n").forEach((line) => {
 const supabaseUrl = envVars["NEXT_PUBLIC_SUPABASE_URL"];
 const supabaseAnonKey = envVars["NEXT_PUBLIC_SUPABASE_ANON_KEY"];
 
-console.log("Checking remote Supabase REST endpoints...");
+console.log("Checking remote Supabase public.users Table...");
 
-async function checkRest() {
-  // Query profiles count
-  const profilesRes = await fetch(`${supabaseUrl}/rest/v1/profiles?select=id,email,full_name,role`, {
+async function checkUsers() {
+  const targetId = "0d1131b4-28a5-46c6-98db-821db768e209";
+
+  // Query public.users for target ID
+  const userRes = await fetch(`${supabaseUrl}/rest/v1/users?id=eq.${targetId}`, {
     headers: {
       apikey: supabaseAnonKey,
       Authorization: `Bearer ${supabaseAnonKey}`,
     },
   });
 
-  console.log("Profiles status:", profilesRes.status);
-  const profilesData = await profilesRes.json();
-  console.log("Profiles count:", Array.isArray(profilesData) ? profilesData.length : profilesData);
-  if (Array.isArray(profilesData)) {
-    console.log("Sample profiles:", profilesData.slice(0, 5));
+  console.log("public.users Status:", userRes.status, userRes.statusText);
+  const userData = await userRes.json();
+  console.log(`public.users for ID ${targetId}:`, userData);
+
+  // Query all public.users
+  const allUsersRes = await fetch(`${supabaseUrl}/rest/v1/users?select=id,full_name,email,affiliation,country,role&order=created_at.desc`, {
+    headers: {
+      apikey: supabaseAnonKey,
+      Authorization: `Bearer ${supabaseAnonKey}`,
+    },
+  });
+  console.log("All public.users Status:", allUsersRes.status);
+  const allUsersData = await allUsersRes.json();
+  console.log("All public.users count:", Array.isArray(allUsersData) ? allUsersData.length : allUsersData);
+  if (Array.isArray(allUsersData)) {
+    console.log("All public.users records:", allUsersData);
   }
-
-  // Query papers count
-  const papersRes = await fetch(`${supabaseUrl}/rest/v1/papers?select=id,title,author_user_id`, {
-    headers: {
-      apikey: supabaseAnonKey,
-      Authorization: `Bearer ${supabaseAnonKey}`,
-    },
-  });
-  console.log("Papers status:", papersRes.status);
-  const papersData = await papersRes.json();
-  console.log("Papers count:", Array.isArray(papersData) ? papersData.length : papersData);
 }
 
-checkRest();
+checkUsers();

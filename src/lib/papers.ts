@@ -221,27 +221,27 @@ export async function submitPaper(
     console.error("Warning: ensurePublicUserExists failed:", syncErr);
   }
 
-  // 3. Query public.users where id = user.id
-  const { data: dbUserRow, error: userQueryError } = await supabase
+  // 3. Query public.users where id = user.id safely with maybeSingle()
+  const { data: userRecord, error: userRecordError } = await supabase
     .from("users")
-    .select("id, full_name, email, affiliation, country, role")
+    .select("id")
     .eq("id", targetUserId)
-    .single();
+    .maybeSingle();
 
-  console.log("3. Query public.users result:", { dbUserRow, userQueryError });
+  console.log("3. Query public.users maybeSingle result:", { userRecord, userRecordError });
 
-  // 4. Confirm that one row exists
-  if (userQueryError || !dbUserRow) {
-    console.error("4. ERROR: Verification failed! No row found in public.users for id:", targetUserId, userQueryError);
+  // 4. Confirm that userRecord exists
+  if (userRecordError || !userRecord) {
+    console.error("4. ERROR: Verification failed! No row found in public.users for id:", targetUserId, userRecordError);
     // Cleanup uploaded storage manuscript
     await supabase.storage.from(BUCKET_NAME).remove([manuscriptPath]);
     return {
       paper: null,
-      error: `Database submission failed: User record missing in public.users table for ID ${targetUserId}. ${userQueryError?.message || "Please complete profile onboarding."}`
+      error: "Please complete onboarding before submitting a paper.",
     };
   }
 
-  console.log("5. Verified public.users row exists for ID:", dbUserRow.id, "- Inserting paper record now.");
+  console.log("5. Verified public.users row exists for ID:", userRecord.id, "- Inserting paper record now.");
 
   // 5. Create Paper Record in PostgreSQL matching actual schema
   const newPaperRecord = {
