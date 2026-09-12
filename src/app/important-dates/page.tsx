@@ -1,11 +1,32 @@
-import React from "react";
-import { defaultConferenceConfig } from "@/config/conference";
+"use client";
+
+import React, { useState, useEffect } from "react";
+import { DatabaseImportantDate } from "@/types/database";
+import { fetchImportantDates } from "@/lib/cms";
 import { SectionHeading } from "@/components/ui/SectionHeading";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
-import { Calendar, Clock, AlertTriangle } from "lucide-react";
+import { LoadingState } from "@/components/ui/LoadingState";
+import { AlertTriangle } from "lucide-react";
 
 export default function ImportantDatesPage() {
-  const config = defaultConferenceConfig;
+  const [dates, setDates] = useState<DatabaseImportantDate[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadData() {
+      const data = await fetchImportantDates();
+      setDates(data);
+      setLoading(false);
+    }
+    loadData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-16">
+        <LoadingState message="Loading Important Dates..." />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16 space-y-12">
@@ -33,10 +54,10 @@ export default function ImportantDatesPage() {
               </tr>
             </thead>
             <tbody>
-              {config.importantDates.map((item, idx) => (
-                <tr key={idx} className={item.highlight ? "bg-amber-50/40 font-semibold" : ""}>
+              {dates.map((item) => (
+                <tr key={item.id} className={item.highlight ? "bg-amber-50/40 font-semibold" : ""}>
                   <td className="font-serif text-academic-navy">{item.title}</td>
-                  <td className="font-mono text-academic-blue">{item.date}</td>
+                  <td className="font-mono text-academic-blue">{item.date_value}</td>
                   <td>
                     {item.highlight ? (
                       <span className="inline-block px-2 py-0.5 bg-amber-100 text-amber-800 border border-amber-300 rounded text-xs">

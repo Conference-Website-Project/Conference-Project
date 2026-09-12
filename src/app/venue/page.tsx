@@ -1,18 +1,40 @@
-import React from "react";
-import { defaultConferenceConfig } from "@/config/conference";
+"use client";
+
+import React, { useState, useEffect } from "react";
+import { Conference } from "@/types/database";
+import { fetchConferenceDetails } from "@/lib/cms";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
-import { MapPin, Building2, Navigation, Hotel } from "lucide-react";
+import { LoadingState } from "@/components/ui/LoadingState";
+import { MapPin, Navigation } from "lucide-react";
 
 export default function VenuePage() {
-  const config = defaultConferenceConfig;
+  const [conference, setConference] = useState<Conference | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadData() {
+      const data = await fetchConferenceDetails();
+      setConference(data);
+      setLoading(false);
+    }
+    loadData();
+  }, []);
+
+  if (loading || !conference) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-16">
+        <LoadingState message="Loading Venue & Location Information..." />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16 space-y-12">
       <SectionHeading
         badge="Location & Accommodations"
         title="Venue & Travel Information"
-        subtitle={`Hosting ${config.shortName} at ${config.location.venue}, ${config.location.city}.`}
+        subtitle={`Hosting ${conference.short_name} at ${conference.venue}, ${conference.city}.`}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -23,7 +45,7 @@ export default function VenuePage() {
             </CardHeader>
             <CardContent className="space-y-3 text-xs text-slate-700 leading-relaxed">
               <p>
-                The event will take place at the <span className="font-semibold text-academic-navy">{config.location.venue}</span> located within the main campus of {config.institution}.
+                The event will take place at the <span className="font-semibold text-academic-navy">{conference.venue}</span> located within the main campus of {conference.institution}.
               </p>
               <p>
                 The campus features air-conditioned auditoriums, high-speed Wi-Fi, poster presentation bays, and cafeteria facilities.
@@ -63,11 +85,13 @@ export default function VenuePage() {
             <div className="space-y-2.5 text-xs text-slate-300">
               <div className="flex items-start gap-2">
                 <MapPin className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                <span>{config.contact.address}</span>
+                <span>
+                  {conference.venue}, {conference.institution}, {conference.city}, {conference.state}, {conference.country}
+                </span>
               </div>
               <div className="flex items-start gap-2">
                 <Navigation className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                <span>Nearest Airport: Delhi International Airport (DEL) — ~25 km</span>
+                <span>Nearest Airport: {conference.city} International Airport — ~25 km</span>
               </div>
             </div>
           </div>
