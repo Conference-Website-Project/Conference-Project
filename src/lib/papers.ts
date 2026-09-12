@@ -206,15 +206,49 @@ export async function submitPaper(
     };
   }
 
-  // 3. Ensure row exists in public.users to satisfy FK papers_author_user_id_fkey -> public.users.id
-  await ensurePublicUserExists(userId);
+  // 3. Diagnostics & Verification before inserting into public.papers
+  const { data: authUserData, error: authErr } = await supabase.auth.getUser();
+  const authUser = authUserData?.user;
+  const targetUserId = userId || authUser?.id || "";
 
-  // 4. Create Paper Record in PostgreSQL matching actual schema
+  console.log("=== DIAGNOSTICS BEFORE PAPER INSERT ===");
+  console.log("1. user.id:", targetUserId);
+  console.log("2. user.email:", authUser?.email);
+
+  // Sync public.users row
+  const { success: syncSuccess, error: syncErr } = await ensurePublicUserExists(targetUserId);
+  if (!syncSuccess) {
+    console.error("Warning: ensurePublicUserExists failed:", syncErr);
+  }
+
+  // 3. Query public.users where id = user.id
+  const { data: dbUserRow, error: userQueryError } = await supabase
+    .from("users")
+    .select("id, full_name, email, affiliation, country, role")
+    .eq("id", targetUserId)
+    .single();
+
+  console.log("3. Query public.users result:", { dbUserRow, userQueryError });
+
+  // 4. Confirm that one row exists
+  if (userQueryError || !dbUserRow) {
+    console.error("4. ERROR: Verification failed! No row found in public.users for id:", targetUserId, userQueryError);
+    // Cleanup uploaded storage manuscript
+    await supabase.storage.from(BUCKET_NAME).remove([manuscriptPath]);
+    return {
+      paper: null,
+      error: `Database submission failed: User record missing in public.users table for ID ${targetUserId}. ${userQueryError?.message || "Please complete profile onboarding."}`
+    };
+  }
+
+  console.log("5. Verified public.users row exists for ID:", dbUserRow.id, "- Inserting paper record now.");
+
+  // 5. Create Paper Record in PostgreSQL matching actual schema
   const newPaperRecord = {
     id: paperUuid,
     conference_id: conferenceId,
     track_id: input.track_id,
-    author_user_id: userId,
+    author_user_id: targetUserId,
     title: input.title.trim(),
     abstract: input.abstract.trim(),
     keywords: input.keywords,

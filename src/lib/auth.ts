@@ -218,38 +218,78 @@ export async function completeOnboardingProfile(
   }
 
   const supabase = createBrowserClient();
+
+  // 1. Get authenticated user
+  const { data: authData, error: authError } = await supabase.auth.getUser();
+  const authUser = authData?.user;
+  const effectiveUserId = userId || authUser?.id;
+
+  if (!effectiveUserId) {
+    return { profile: null, error: "Authentication missing. User ID is null." };
+  }
+
+  const email = authUser?.email || "";
+
+  // 2. Upsert into public.users first (satisfies foreign key papers.author_user_id -> public.users.id)
+  const userPayload = {
+    id: effectiveUserId,
+    full_name: data.fullName.trim(),
+    email: email,
+    affiliation: data.institution.trim(),
+    country: data.country.trim(),
+    role: "PARTICIPANT" as UserRole,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { error: userUpsertError } = await supabase
+    .from("users")
+    .upsert(userPayload, { onConflict: "id" });
+
+  if (userUpsertError) {
+    console.error("Error upserting into public.users during onboarding:", userUpsertError.message);
+    return { profile: null, error: `Failed to save user record in database: ${userUpsertError.message}` };
+  }
+
+  // 3. Update public.profiles table
   const updates = {
-    full_name: data.fullName,
-    institution: data.institution,
-    designation: data.designation || "",
-    country: data.country,
-    phone: data.phone || "",
+    full_name: data.fullName.trim(),
+    institution: data.institution.trim(),
+    designation: data.designation?.trim() || "",
+    country: data.country.trim(),
+    phone: data.phone?.trim() || "",
     participation_type: data.participationType,
     onboarding_completed: true,
     updated_at: new Date().toISOString(),
   };
 
-  const { data: updatedData, error } = await supabase
+  const { data: updatedProfile, error: profileError } = await supabase
     .from("profiles")
     .update(updates)
-    .eq("id", userId)
+    .eq("id", effectiveUserId)
     .select()
     .single();
 
-  if (error) {
-    return { profile: null, error: error.message };
+  if (profileError) {
+    // If update returned error (e.g. profile row didn't exist), upsert into profiles
+    const { data: upsertedProfile, error: profileUpsertError } = await supabase
+      .from("profiles")
+      .upsert({
+        id: effectiveUserId,
+        email: email,
+        role: "PARTICIPANT",
+        ...updates,
+      }, { onConflict: "id" })
+      .select()
+      .single();
+
+    if (profileUpsertError) {
+      console.error("Error upserting public.profiles:", profileUpsertError.message);
+      return { profile: null, error: profileUpsertError.message };
+    }
+    return { profile: upsertedProfile as Profile, error: null };
   }
 
-  // Also sync/upsert into public.users to satisfy foreign key papers.author_user_id -> public.users.id
-  await ensurePublicUserExists(userId, {
-    full_name: data.fullName.trim(),
-    email: updatedData?.email || "",
-    affiliation: data.institution.trim(),
-    country: data.country.trim(),
-    role: updatedData?.role || "PARTICIPANT",
-  });
-
-  return { profile: updatedData as Profile, error: null };
+  return { profile: updatedProfile as Profile, error: null };
 }
 
 /**
@@ -259,18 +299,18 @@ export async function ensurePublicUserExists(
   userId: string,
   overrides?: { full_name?: string; email?: string; affiliation?: string; country?: string; role?: string }
 ): Promise<{ success: boolean; error: string | null }> {
-  if (!isSupabaseConfigured() || !userId) return { success: false, error: "Not configured" };
+  if (!isSupabaseConfigured() || !userId) return { success: false, error: "Not configured or missing userId" };
 
   const supabase = createBrowserClient();
+
+  const { data: authData } = await supabase.auth.getUser();
+  const authUser = authData?.user;
 
   const { data: profile } = await supabase
     .from("profiles")
     .select("*")
     .eq("id", userId)
     .single();
-
-  const { data: authData } = await supabase.auth.getUser();
-  const authUser = authData?.user;
 
   const fullName =
     overrides?.full_name ||
@@ -300,7 +340,7 @@ export async function ensurePublicUserExists(
     .upsert(userPayload, { onConflict: "id" });
 
   if (error) {
-    console.error("Error upserting public.users:", error.message);
+    console.error("Error upserting into public.users:", error.message);
     return { success: false, error: error.message };
   }
 
