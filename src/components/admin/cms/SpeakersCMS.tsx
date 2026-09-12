@@ -30,7 +30,7 @@ export function SpeakersCMS() {
     display_order: 1,
   });
   const [submitting, setSubmitting] = useState(false);
-  const [alert, setAlert] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [statusAlert, setStatusAlert] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
   useEffect(() => {
     loadSpeakers();
@@ -54,7 +54,7 @@ export function SpeakersCMS() {
       image_url: "",
       display_order: speakers.length + 1,
     });
-    setAlert(null);
+    setStatusAlert(null);
     setIsModalOpen(true);
   };
 
@@ -69,14 +69,14 @@ export function SpeakersCMS() {
       image_url: speaker.image_url || "",
       display_order: speaker.display_order || 1,
     });
-    setAlert(null);
+    setStatusAlert(null);
     setIsModalOpen(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    setAlert(null);
+    setStatusAlert(null);
 
     if (editingSpeaker) {
       const { error } = await updateSpeaker(editingSpeaker.id, {
@@ -90,9 +90,9 @@ export function SpeakersCMS() {
       });
 
       if (error) {
-        setAlert({ type: "error", message: error });
+        setStatusAlert({ type: "error", message: error });
       } else {
-        setAlert({ type: "success", message: "Speaker updated successfully!" });
+        setStatusAlert({ type: "success", message: "Speaker updated successfully!" });
         await loadSpeakers();
         setTimeout(() => setIsModalOpen(false), 800);
       }
@@ -109,9 +109,9 @@ export function SpeakersCMS() {
       });
 
       if (error) {
-        setAlert({ type: "error", message: error });
+        setStatusAlert({ type: "error", message: error });
       } else {
-        setAlert({ type: "success", message: "Speaker created successfully!" });
+        setStatusAlert({ type: "success", message: "Speaker created successfully!" });
         await loadSpeakers();
         setTimeout(() => setIsModalOpen(false), 800);
       }
@@ -125,7 +125,7 @@ export function SpeakersCMS() {
 
     const { success, error } = await deleteSpeaker(speaker.id);
     if (!success) {
-      alert(`Failed to delete speaker: ${error}`);
+      window.alert(`Failed to delete speaker: ${error}`);
     } else {
       await loadSpeakers();
     }
@@ -278,20 +278,20 @@ export function SpeakersCMS() {
         size="lg"
       >
         <form onSubmit={handleSubmit} className="space-y-4">
-          {alert && (
+          {statusAlert && (
             <div
               className={`p-3 rounded text-xs flex items-center gap-2 ${
-                alert.type === "success"
+                statusAlert.type === "success"
                   ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
                   : "bg-red-50 text-red-800 border border-red-200"
               }`}
             >
-              {alert.type === "success" ? (
+              {statusAlert.type === "success" ? (
                 <CheckCircle2 className="w-4 h-4 shrink-0" />
               ) : (
                 <AlertCircle className="w-4 h-4 shrink-0" />
               )}
-              <span>{alert.message}</span>
+              <span>{statusAlert.message}</span>
             </div>
           )}
 

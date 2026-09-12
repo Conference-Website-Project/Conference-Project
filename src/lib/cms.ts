@@ -133,11 +133,7 @@ export async function fetchSpeakers(conferenceId: string = DEFAULT_CONFERENCE_ID
       return fallbackSpeakers;
     }
 
-    if (!data || data.length === 0) {
-      return fallbackSpeakers;
-    }
-
-    return data as DatabaseSpeaker[];
+    return (data || []) as DatabaseSpeaker[];
   } catch (err: any) {
     console.warn("fetchSpeakers error:", err?.message);
     return fallbackSpeakers;
@@ -237,11 +233,7 @@ export async function fetchImportantDates(conferenceId: string = DEFAULT_CONFERE
       return fallbackDates;
     }
 
-    if (!data || data.length === 0) {
-      return fallbackDates;
-    }
-
-    return data as DatabaseImportantDate[];
+    return (data || []) as DatabaseImportantDate[];
   } catch (err: any) {
     console.warn("fetchImportantDates error:", err?.message);
     return fallbackDates;
@@ -342,11 +334,7 @@ export async function fetchCommitteeMembers(conferenceId: string = DEFAULT_CONFE
       return fallbackCommittee;
     }
 
-    if (!data || data.length === 0) {
-      return fallbackCommittee;
-    }
-
-    return data as DatabaseCommitteeMember[];
+    return (data || []) as DatabaseCommitteeMember[];
   } catch (err: any) {
     console.warn("fetchCommitteeMembers error:", err?.message);
     return fallbackCommittee;
@@ -445,11 +433,7 @@ export async function fetchConferenceTracks(conferenceId: string = DEFAULT_CONFE
       return fallbackTracks;
     }
 
-    if (!data || data.length === 0) {
-      return fallbackTracks;
-    }
-
-    return data as ConferenceTrack[];
+    return (data || []) as ConferenceTrack[];
   } catch (err: any) {
     console.warn("fetchConferenceTracks error:", err?.message);
     return fallbackTracks;
@@ -559,11 +543,7 @@ export async function fetchAnnouncements(
       return fallbackAnnouncements;
     }
 
-    if (!data || data.length === 0) {
-      return fallbackAnnouncements;
-    }
-
-    return data as Announcement[];
+    return (data || []) as Announcement[];
   } catch (err: any) {
     console.warn("fetchAnnouncements error:", err?.message);
     return fallbackAnnouncements;

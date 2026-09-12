@@ -25,7 +25,7 @@ export function ImportantDatesCMS() {
     display_order: 1,
   });
   const [submitting, setSubmitting] = useState(false);
-  const [alert, setAlert] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [statusAlert, setStatusAlert] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
   useEffect(() => {
     loadDates();
@@ -46,7 +46,7 @@ export function ImportantDatesCMS() {
       highlight: false,
       display_order: dates.length + 1,
     });
-    setAlert(null);
+    setStatusAlert(null);
     setIsModalOpen(true);
   };
 
@@ -58,14 +58,14 @@ export function ImportantDatesCMS() {
       highlight: Boolean(item.highlight),
       display_order: item.display_order || 1,
     });
-    setAlert(null);
+    setStatusAlert(null);
     setIsModalOpen(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    setAlert(null);
+    setStatusAlert(null);
 
     if (editingDate) {
       const { error } = await updateImportantDate(editingDate.id, {
@@ -76,9 +76,9 @@ export function ImportantDatesCMS() {
       });
 
       if (error) {
-        setAlert({ type: "error", message: error });
+        setStatusAlert({ type: "error", message: error });
       } else {
-        setAlert({ type: "success", message: "Important date updated successfully!" });
+        setStatusAlert({ type: "success", message: "Important date updated successfully!" });
         await loadDates();
         setTimeout(() => setIsModalOpen(false), 800);
       }
@@ -92,9 +92,9 @@ export function ImportantDatesCMS() {
       });
 
       if (error) {
-        setAlert({ type: "error", message: error });
+        setStatusAlert({ type: "error", message: error });
       } else {
-        setAlert({ type: "success", message: "Important date created successfully!" });
+        setStatusAlert({ type: "success", message: "Important date created successfully!" });
         await loadDates();
         setTimeout(() => setIsModalOpen(false), 800);
       }
@@ -108,7 +108,7 @@ export function ImportantDatesCMS() {
 
     const { success, error } = await deleteImportantDate(item.id);
     if (!success) {
-      alert(`Failed to delete deadline: ${error}`);
+      window.alert(`Failed to delete deadline: ${error}`);
     } else {
       await loadDates();
     }
@@ -222,20 +222,20 @@ export function ImportantDatesCMS() {
         size="md"
       >
         <form onSubmit={handleSubmit} className="space-y-4">
-          {alert && (
+          {statusAlert && (
             <div
               className={`p-3 rounded text-xs flex items-center gap-2 ${
-                alert.type === "success"
+                statusAlert.type === "success"
                   ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
                   : "bg-red-50 text-red-800 border border-red-200"
               }`}
             >
-              {alert.type === "success" ? (
+              {statusAlert.type === "success" ? (
                 <CheckCircle2 className="w-4 h-4 shrink-0" />
               ) : (
                 <AlertCircle className="w-4 h-4 shrink-0" />
               )}
-              <span>{alert.message}</span>
+              <span>{statusAlert.message}</span>
             </div>
           )}
 

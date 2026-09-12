@@ -25,7 +25,7 @@ export function AnnouncementsCMS() {
     is_published: true,
   });
   const [submitting, setSubmitting] = useState(false);
-  const [alert, setAlert] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [statusAlert, setStatusAlert] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
   useEffect(() => {
     loadAnnouncements();
@@ -46,7 +46,7 @@ export function AnnouncementsCMS() {
       content: "",
       is_published: true,
     });
-    setAlert(null);
+    setStatusAlert(null);
     setIsModalOpen(true);
   };
 
@@ -57,14 +57,14 @@ export function AnnouncementsCMS() {
       content: item.content,
       is_published: item.is_published,
     });
-    setAlert(null);
+    setStatusAlert(null);
     setIsModalOpen(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    setAlert(null);
+    setStatusAlert(null);
 
     if (editingAnnouncement) {
       const { error } = await updateAnnouncement(editingAnnouncement.id, {
@@ -74,9 +74,9 @@ export function AnnouncementsCMS() {
       });
 
       if (error) {
-        setAlert({ type: "error", message: error });
+        setStatusAlert({ type: "error", message: error });
       } else {
-        setAlert({ type: "success", message: "Announcement updated successfully!" });
+        setStatusAlert({ type: "success", message: "Announcement updated successfully!" });
         await loadAnnouncements();
         setTimeout(() => setIsModalOpen(false), 800);
       }
@@ -89,9 +89,9 @@ export function AnnouncementsCMS() {
       });
 
       if (error) {
-        setAlert({ type: "error", message: error });
+        setStatusAlert({ type: "error", message: error });
       } else {
-        setAlert({ type: "success", message: "Announcement published successfully!" });
+        setStatusAlert({ type: "success", message: "Announcement published successfully!" });
         await loadAnnouncements();
         setTimeout(() => setIsModalOpen(false), 800);
       }
@@ -242,20 +242,20 @@ export function AnnouncementsCMS() {
         size="lg"
       >
         <form onSubmit={handleSubmit} className="space-y-4">
-          {alert && (
+          {statusAlert && (
             <div
               className={`p-3 rounded text-xs flex items-center gap-2 ${
-                alert.type === "success"
+                statusAlert.type === "success"
                   ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
                   : "bg-red-50 text-red-800 border border-red-200"
               }`}
             >
-              {alert.type === "success" ? (
+              {statusAlert.type === "success" ? (
                 <CheckCircle2 className="w-4 h-4 shrink-0" />
               ) : (
                 <AlertCircle className="w-4 h-4 shrink-0" />
               )}
-              <span>{alert.message}</span>
+              <span>{statusAlert.message}</span>
             </div>
           )}
 
