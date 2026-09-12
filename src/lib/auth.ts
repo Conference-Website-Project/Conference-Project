@@ -240,7 +240,71 @@ export async function completeOnboardingProfile(
     return { profile: null, error: error.message };
   }
 
+  // Also sync/upsert into public.users to satisfy foreign key papers.author_user_id -> public.users.id
+  await ensurePublicUserExists(userId, {
+    full_name: data.fullName.trim(),
+    email: updatedData?.email || "",
+    affiliation: data.institution.trim(),
+    country: data.country.trim(),
+    role: updatedData?.role || "PARTICIPANT",
+  });
+
   return { profile: updatedData as Profile, error: null };
+}
+
+/**
+ * Helper to ensure a row exists in public.users matching auth.uid()
+ */
+export async function ensurePublicUserExists(
+  userId: string,
+  overrides?: { full_name?: string; email?: string; affiliation?: string; country?: string; role?: string }
+): Promise<{ success: boolean; error: string | null }> {
+  if (!isSupabaseConfigured() || !userId) return { success: false, error: "Not configured" };
+
+  const supabase = createBrowserClient();
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", userId)
+    .single();
+
+  const { data: authData } = await supabase.auth.getUser();
+  const authUser = authData?.user;
+
+  const fullName =
+    overrides?.full_name ||
+    profile?.full_name ||
+    authUser?.user_metadata?.full_name ||
+    authUser?.user_metadata?.name ||
+    authUser?.email?.split("@")[0] ||
+    "Participant User";
+
+  const email = overrides?.email || profile?.email || authUser?.email || "";
+  const affiliation = overrides?.affiliation || profile?.institution || authUser?.user_metadata?.institution || "N/A";
+  const country = overrides?.country || profile?.country || authUser?.user_metadata?.country || "India";
+  const role = overrides?.role || profile?.role || "PARTICIPANT";
+
+  const userPayload = {
+    id: userId,
+    full_name: fullName,
+    email: email,
+    affiliation: affiliation,
+    country: country,
+    role: role,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { error } = await supabase
+    .from("users")
+    .upsert(userPayload, { onConflict: "id" });
+
+  if (error) {
+    console.error("Error upserting public.users:", error.message);
+    return { success: false, error: error.message };
+  }
+
+  return { success: true, error: null };
 }
 
 export async function updateUserProfile(userId: string, updates: Partial<Profile>): Promise<{ profile: Profile | null; error: string | null }> {

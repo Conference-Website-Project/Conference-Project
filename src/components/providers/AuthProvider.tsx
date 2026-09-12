@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { Profile, UserRole } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
-import { isSupabaseConfigured, signOutUser } from "@/lib/auth";
+import { isSupabaseConfigured, signOutUser, ensurePublicUserExists } from "@/lib/auth";
 
 interface AuthContextType {
   user: any | null;
@@ -78,6 +78,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           setProfile((upsertedProfile as Profile) || (defaultProfile as Profile));
         }
+
+        // Ensure row exists in public.users table
+        await ensurePublicUserExists(session.user.id);
       } else {
         setUser(null);
         setProfile(null);
@@ -133,6 +136,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             setProfile((upsertedProfile as Profile) || (defaultProfile as Profile));
           }
+
+          // Ensure row exists in public.users table
+          await ensurePublicUserExists(session.user.id);
         } else {
           setUser(null);
           setProfile(null);

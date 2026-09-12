@@ -1,4 +1,5 @@
 import { createClient as createBrowserClient } from "@/lib/supabase/client";
+import { ensurePublicUserExists } from "@/lib/auth";
 import { 
   Paper, 
   PaperAuthor, 
@@ -205,7 +206,10 @@ export async function submitPaper(
     };
   }
 
-  // 3. Create Paper Record in PostgreSQL matching actual schema
+  // 3. Ensure row exists in public.users to satisfy FK papers_author_user_id_fkey -> public.users.id
+  await ensurePublicUserExists(userId);
+
+  // 4. Create Paper Record in PostgreSQL matching actual schema
   const newPaperRecord = {
     id: paperUuid,
     conference_id: conferenceId,
