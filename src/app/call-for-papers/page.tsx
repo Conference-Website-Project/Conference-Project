@@ -2,52 +2,42 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { defaultConferenceConfig } from "@/config/conference";
-import { fetchConferenceTracks } from "@/lib/papers";
 import { ConferenceTrack } from "@/types/database";
+import { fetchConferenceTracks } from "@/lib/cms";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
-import { FileText, CheckCircle2, AlertCircle, ArrowRight, Download, BookOpen } from "lucide-react";
+import { LoadingState } from "@/components/ui/LoadingState";
+import { CheckCircle2, ArrowRight, Download } from "lucide-react";
 
 export default function CallForPapersPage() {
-  const config = defaultConferenceConfig;
-  const [dbTracks, setDbTracks] = useState<ConferenceTrack[]>([]);
-  const [loadingTracks, setLoadingTracks] = useState(true);
+  const [tracks, setTracks] = useState<ConferenceTrack[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function loadTracks() {
-      setLoadingTracks(true);
-      const { tracks } = await fetchConferenceTracks();
-      if (tracks && tracks.length > 0) {
-        setDbTracks(tracks);
-      } else {
-        // Fallback display
-        setDbTracks(
-          config.tracks.map((t) => ({
-            id: t.id,
-            conference_id: config.id,
-            code: t.code,
-            name: t.name,
-            description: t.description,
-            created_at: new Date().toISOString(),
-          }))
-        );
-      }
-      setLoadingTracks(false);
+    async function loadData() {
+      const data = await fetchConferenceTracks();
+      setTracks(data);
+      setLoading(false);
     }
-    loadTracks();
-  }, [config]);
+    loadData();
+  }, []);
 
-  const displayTracks = dbTracks;
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-16">
+        <LoadingState message="Loading Call For Papers tracks..." />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16 space-y-12">
       <SectionHeading
         badge="Submissions & Guidelines"
         title="Call for Papers (CFP)"
-        subtitle="Original research manuscripts are invited for submission across four technical tracks."
+        subtitle="Original research manuscripts are invited for submission across technical tracks."
       />
 
       {/* Submission CTA Banner */}
@@ -56,7 +46,7 @@ export default function CallForPapersPage() {
           <Badge variant="gold">Submissions Open</Badge>
           <h3 className="font-serif font-bold text-xl text-white">Paper Submission Portal is Active</h3>
           <p className="text-xs text-slate-300">
-            Submit your full manuscript in IEEE/ACM PDF format by {config.importantDates[0].date}.
+            Submit your full manuscript in PDF format through the online author submission dashboard.
           </p>
         </div>
         <Link href="/dashboard/papers/new">
@@ -74,8 +64,8 @@ export default function CallForPapersPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {displayTracks.map((track) => (
-            <Card key={track.id || track.code} id={track.code} bordered accentBorder="navy">
+          {tracks.map((track) => (
+            <Card key={track.id} id={track.code} bordered accentBorder="navy">
               <CardHeader className="flex items-center justify-between">
                 <CardTitle>{track.name}</CardTitle>
                 <Badge variant="navy">{track.code}</Badge>

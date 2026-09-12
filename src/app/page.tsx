@@ -1,33 +1,89 @@
-import React from "react";
+"use client";
+
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { defaultConferenceConfig } from "@/config/conference";
+import {
+  Conference,
+  DatabaseSpeaker,
+  DatabaseImportantDate,
+  ConferenceTrack,
+  Announcement,
+} from "@/types/database";
+import {
+  fetchConferenceDetails,
+  fetchSpeakers,
+  fetchImportantDates,
+  fetchConferenceTracks,
+  fetchAnnouncements,
+} from "@/lib/cms";
 import { SectionHeading } from "@/components/ui/SectionHeading";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/Card";
+import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
+import { LoadingState } from "@/components/ui/LoadingState";
 import { 
   Calendar, 
   MapPin, 
-  FileText, 
-  UserCheck, 
-  Award, 
   BookOpen, 
   CheckCircle2, 
   ArrowRight, 
   Building2, 
   Users, 
-  ShieldCheck, 
-  Globe 
+  Award, 
+  Globe,
+  Megaphone
 } from "lucide-react";
 
 export default function HomePage() {
-  const config = defaultConferenceConfig;
+  const [conference, setConference] = useState<Conference | null>(null);
+  const [speakers, setSpeakers] = useState<DatabaseSpeaker[]>([]);
+  const [dates, setDates] = useState<DatabaseImportantDate[]>([]);
+  const [tracks, setTracks] = useState<ConferenceTrack[]>([]);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadAllData() {
+      setLoading(true);
+      const [confData, spkData, dateData, trackData, annData] = await Promise.all([
+        fetchConferenceDetails(),
+        fetchSpeakers(),
+        fetchImportantDates(),
+        fetchConferenceTracks(),
+        fetchAnnouncements(),
+      ]);
+
+      setConference(confData);
+      setSpeakers(spkData);
+      setDates(dateData);
+      setTracks(trackData);
+      setAnnouncements(annData);
+      setLoading(false);
+    }
+    loadAllData();
+  }, []);
+
+  if (loading || !conference) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-24">
+        <LoadingState message="Initializing Conference Portal..." />
+      </div>
+    );
+  }
+
+  const formattedDates = `${new Date(conference.start_date).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  })} – ${new Date(conference.end_date).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  })}`;
 
   return (
     <div className="space-y-16 lg:space-y-24 pb-16">
       {/* 1. HERO SECTION */}
       <section className="bg-academic-navy text-white relative overflow-hidden border-b-4 border-academic-gold">
-        {/* Subtle geometric grid background pattern */}
         <div 
           className="absolute inset-0 opacity-5 pointer-events-none"
           style={{
@@ -40,30 +96,28 @@ export default function HomePage() {
           <div className="max-w-3xl space-y-6">
             <div className="inline-flex items-center space-x-2 px-3 py-1.5 rounded bg-slate-800/90 border border-slate-700 text-amber-400 text-xs font-semibold tracking-wider uppercase">
               <Building2 className="w-3.5 h-3.5" />
-              <span>{config.institution}</span>
+              <span>{conference.institution}</span>
             </div>
 
             <h1 className="text-3xl sm:text-4xl md:text-5xl font-serif font-extrabold text-white tracking-tight leading-tight">
-              {config.name}
+              {conference.name}
             </h1>
 
             <p className="text-lg md:text-xl text-slate-300 font-sans leading-relaxed border-l-2 border-academic-gold pl-4 italic">
-              "{config.theme}"
+              "{conference.theme}"
             </p>
 
-            {/* Quick Metadata Pill Strip */}
             <div className="flex flex-wrap gap-4 pt-2 text-sm text-slate-200">
               <div className="flex items-center space-x-2 bg-slate-800/80 px-3.5 py-2 rounded border border-slate-700">
                 <Calendar className="w-4 h-4 text-amber-400" />
-                <span className="font-medium">{config.dates.formatted}</span>
+                <span className="font-medium">{formattedDates}</span>
               </div>
               <div className="flex items-center space-x-2 bg-slate-800/80 px-3.5 py-2 rounded border border-slate-700">
                 <MapPin className="w-4 h-4 text-amber-400" />
-                <span className="font-medium">{config.location.venue}, {config.location.city}</span>
+                <span className="font-medium">{conference.venue}, {conference.city}</span>
               </div>
             </div>
 
-            {/* Primary & Secondary CTAs */}
             <div className="flex flex-wrap gap-4 pt-4">
               <Link href="/registration">
                 <Button variant="gold" size="lg" rightIcon={<ArrowRight className="w-4 h-4" />}>
@@ -85,6 +139,21 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ANNOUNCEMENTS BAR IF AVAILABLE */}
+      {announcements.length > 0 && (
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8">
+          <div className="bg-amber-500 text-slate-900 rounded-md p-4 flex items-center gap-4 shadow-md">
+            <Megaphone className="w-5 h-5 shrink-0 text-slate-900" />
+            <div className="flex-1 text-xs sm:text-sm font-semibold truncate">
+              <span className="font-bold uppercase tracking-wider text-[11px] bg-slate-900 text-amber-400 px-2 py-0.5 rounded mr-2">
+                Announcement
+              </span>
+              {announcements[0].title}: {announcements[0].content}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* 2. CONFERENCE INTRODUCTION */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
@@ -92,10 +161,10 @@ export default function HomePage() {
             <SectionHeading
               badge="About The Conference"
               title="A Premier Platform for Global Research Exchange"
-              subtitle={`Hosted by ${config.institution}, ${config.shortName} brings together leading academic scientists, researchers, scholars, and industry leaders.`}
+              subtitle={`Hosted by ${conference.institution}, ${conference.short_name} brings together leading academic scientists, researchers, scholars, and industry leaders.`}
             />
             <p className="text-slate-700 text-sm leading-relaxed">
-              The {config.name} provides an interdisciplinary forum for researchers, practitioners, and educators to present and discuss the most recent innovations, trends, concerns, practical challenges encountered, and solutions adopted in the fields of engineering, artificial intelligence, and sustainable technologies.
+              The {conference.name} provides an interdisciplinary forum for researchers, practitioners, and educators to present and discuss the most recent innovations, trends, concerns, practical challenges encountered, and solutions adopted in the fields of engineering, artificial intelligence, and sustainable technologies.
             </p>
             <p className="text-slate-700 text-sm leading-relaxed">
               All accepted and presented papers will undergo rigorous double-blind peer review by international committee experts and will be recommended for inclusion in indexed digital proceedings.
@@ -144,9 +213,9 @@ export default function HomePage() {
           />
 
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
-            {config.importantDates.map((item, idx) => (
+            {dates.map((item, idx) => (
               <div
-                key={idx}
+                key={item.id}
                 className={`bg-white p-5 rounded-md border transition-all ${
                   item.highlight
                     ? "border-academic-gold shadow-md bg-amber-50/30"
@@ -160,7 +229,7 @@ export default function HomePage() {
                   {item.title}
                 </div>
                 <div className="text-xs font-semibold text-academic-blue bg-blue-50 border border-blue-100 inline-block px-2 py-1 rounded">
-                  {item.date}
+                  {item.date_value}
                 </div>
               </div>
             ))}
@@ -181,11 +250,11 @@ export default function HomePage() {
         <SectionHeading
           badge="Tracks & Topics"
           title="Call for Papers — Research Tracks"
-          subtitle="Authors are invited to submit original, unpublished research papers across four primary tracks."
+          subtitle="Authors are invited to submit original, unpublished research papers across technical tracks."
         />
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {config.tracks.map((track) => (
+          {tracks.map((track) => (
             <Card key={track.id} hoverable accentBorder="navy">
               <CardHeader className="flex items-start justify-between">
                 <div>
@@ -228,12 +297,20 @@ export default function HomePage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {config.speakers.map((spk) => (
+            {speakers.map((spk) => (
               <div key={spk.id} className="bg-slate-800/80 border border-slate-700 rounded-md p-6 space-y-3 flex flex-col justify-between">
                 <div className="space-y-2">
-                  <div className="w-12 h-12 rounded-full bg-slate-700 border border-slate-600 flex items-center justify-center text-amber-400 font-serif font-bold text-lg">
-                    {spk.name.replace(/^(Prof\.|Dr\.)\s*/, '').charAt(0)}
-                  </div>
+                  {spk.image_url ? (
+                    <img
+                      src={spk.image_url}
+                      alt={spk.name}
+                      className="w-12 h-12 rounded-full object-cover border border-slate-600"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 rounded-full bg-slate-700 border border-slate-600 flex items-center justify-center text-amber-400 font-serif font-bold text-lg">
+                      {spk.name.replace(/^(Prof\.|Dr\.)\s*/, '').charAt(0)}
+                    </div>
+                  )}
                   <h3 className="font-serif font-bold text-white text-lg">{spk.name}</h3>
                   <p className="text-xs text-amber-400 font-medium">{spk.title}</p>
                   <p className="text-xs text-slate-400">{spk.affiliation}</p>
@@ -260,7 +337,7 @@ export default function HomePage() {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <SectionHeading
           badge="Highlights"
-          title="Why Participate in {config.shortName}?"
+          title={`Why Participate in ${conference.short_name}?`}
           subtitle="An enriching academic environment designed to foster collaboration, publication, and recognition."
         />
 
@@ -314,7 +391,7 @@ export default function HomePage() {
         <div className="bg-white border border-slate-200 rounded-md p-8 md:p-12 shadow-subtle flex flex-col md:flex-row items-center justify-between gap-8">
           <div className="space-y-3 max-w-2xl">
             <Badge variant="navy">Host Institution</Badge>
-            <h3 className="font-serif font-bold text-2xl text-academic-navy">{config.institution}</h3>
+            <h3 className="font-serif font-bold text-2xl text-academic-navy">{conference.institution}</h3>
             <p className="text-slate-600 text-sm leading-relaxed">
               Established as a leading center of academic excellence and research innovation, the institution regularly hosts international symposia, research workshops, and global conferences.
             </p>
@@ -339,7 +416,7 @@ export default function HomePage() {
         <SectionHeading
           badge="Host City & Location"
           title="Conference Venue"
-          subtitle={`${config.location.venue}, ${config.location.city}, ${config.location.state}, ${config.location.country}`}
+          subtitle={`${conference.venue}, ${conference.city}, ${conference.state}, ${conference.country}`}
         />
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 bg-white border border-slate-200 rounded-md p-6 shadow-subtle">
@@ -351,11 +428,11 @@ export default function HomePage() {
             <div className="space-y-2 text-xs text-slate-700">
               <div className="flex items-center space-x-2">
                 <MapPin className="w-4 h-4 text-academic-blue" />
-                <span>{config.contact.address}</span>
+                <span>{conference.venue}, {conference.institution}, {conference.city}, {conference.state}, {conference.country}</span>
               </div>
               <div className="flex items-center space-x-2">
                 <Globe className="w-4 h-4 text-academic-blue" />
-                <span>Nearest International Airport: Delhi International Airport (DEL)</span>
+                <span>Nearest International Airport: {conference.city} International Airport</span>
               </div>
             </div>
             <div className="pt-2">
@@ -369,9 +446,9 @@ export default function HomePage() {
 
           <div className="bg-slate-100 rounded border border-slate-200 p-6 flex flex-col justify-center items-center text-center">
             <Building2 className="w-12 h-12 text-slate-400 mb-3" />
-            <h4 className="font-serif font-semibold text-slate-800 text-sm">Venue Map & Directions Placeholder</h4>
+            <h4 className="font-serif font-semibold text-slate-800 text-sm">Venue Map & Directions</h4>
             <p className="text-xs text-slate-500 mt-1 max-w-xs">
-              Interactive map widget and campus directions will be integrated here.
+              {conference.venue}, {conference.city}
             </p>
           </div>
         </div>

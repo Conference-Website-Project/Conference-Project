@@ -23,16 +23,28 @@ import {
   Megaphone, 
   LogOut, 
   Building2,
+  MapPin,
+  Calendar,
+  Layers,
   ArrowRight,
   ShieldAlert
 } from "lucide-react";
+
+// CMS Modules
+import { SpeakersCMS } from "@/components/admin/cms/SpeakersCMS";
+import { ConferenceDetailsCMS } from "@/components/admin/cms/ConferenceDetailsCMS";
+import { VenueCMS } from "@/components/admin/cms/VenueCMS";
+import { ImportantDatesCMS } from "@/components/admin/cms/ImportantDatesCMS";
+import { CommitteeCMS } from "@/components/admin/cms/CommitteeCMS";
+import { TracksCMS } from "@/components/admin/cms/TracksCMS";
+import { AnnouncementsCMS } from "@/components/admin/cms/AnnouncementsCMS";
 
 export default function AdminDashboardPage() {
   const { profile, isAdmin, isAuthenticated, loading: authLoading, signOut } = useAuth();
   const [totalUsers, setTotalUsers] = useState<number>(0);
 
   const [activeTab, setActiveTab] = useState<
-    "dashboard" | "conference" | "participants" | "papers" | "registrations" | "payments" | "speakers" | "committee" | "announcements" | "settings"
+    "dashboard" | "conference" | "venue" | "participants" | "papers" | "registrations" | "payments" | "speakers" | "committee" | "tracks" | "dates" | "announcements" | "settings"
   >("dashboard");
 
   const router = useRouter();
@@ -85,12 +97,15 @@ export default function AdminDashboardPage() {
     { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard className="w-4 h-4" /> },
     { id: "participants", label: "Participants", icon: <Users className="w-4 h-4" />, count: totalUsers },
     { id: "conference", label: "Conference Setup", icon: <Building2 className="w-4 h-4" /> },
+    { id: "venue", label: "Venue & Location", icon: <MapPin className="w-4 h-4" /> },
+    { id: "speakers", label: "Keynote Speakers", icon: <Mic className="w-4 h-4" /> },
+    { id: "committee", label: "Committee", icon: <Award className="w-4 h-4" /> },
+    { id: "tracks", label: "Tracks", icon: <Layers className="w-4 h-4" /> },
+    { id: "dates", label: "Important Dates", icon: <Calendar className="w-4 h-4" /> },
+    { id: "announcements", label: "Announcements", icon: <Megaphone className="w-4 h-4" /> },
     { id: "papers", label: "Paper Submissions", icon: <FileText className="w-4 h-4" /> },
     { id: "registrations", label: "Registrations", icon: <CheckCircle2 className="w-4 h-4" /> },
     { id: "payments", label: "Payments", icon: <CreditCard className="w-4 h-4" /> },
-    { id: "speakers", label: "Keynote Speakers", icon: <Mic className="w-4 h-4" /> },
-    { id: "committee", label: "Committee", icon: <Award className="w-4 h-4" /> },
-    { id: "announcements", label: "Announcements", icon: <Megaphone className="w-4 h-4" /> },
     { id: "settings", label: "Settings", icon: <Settings className="w-4 h-4" /> },
   ];
 
@@ -255,19 +270,34 @@ export default function AdminDashboardPage() {
             </div>
           )}
 
-          {activeTab !== "dashboard" && (
-            <Card bordered accentBorder="navy">
-              <CardHeader>
-                <CardTitle className="capitalize">{activeTab} Management</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <EmptyState
-                  title={`No ${activeTab} Records Logged`}
-                  description={`Admin management tools for ${activeTab} will populate here when live data is registered.`}
-                />
-              </CardContent>
-            </Card>
-          )}
+          {activeTab === "conference" && <ConferenceDetailsCMS />}
+          {activeTab === "venue" && <VenueCMS />}
+          {activeTab === "speakers" && <SpeakersCMS />}
+          {activeTab === "committee" && <CommitteeCMS />}
+          {activeTab === "tracks" && <TracksCMS />}
+          {activeTab === "dates" && <ImportantDatesCMS />}
+          {activeTab === "announcements" && <AnnouncementsCMS />}
+
+          {activeTab !== "dashboard" &&
+            activeTab !== "conference" &&
+            activeTab !== "venue" &&
+            activeTab !== "speakers" &&
+            activeTab !== "committee" &&
+            activeTab !== "tracks" &&
+            activeTab !== "dates" &&
+            activeTab !== "announcements" && (
+              <Card bordered accentBorder="navy">
+                <CardHeader>
+                  <CardTitle className="capitalize">{activeTab} Management</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <EmptyState
+                    title={`No ${activeTab} Records Logged`}
+                    description={`Admin management tools for ${activeTab} will populate here when live data is registered.`}
+                  />
+                </CardContent>
+              </Card>
+            )}
         </main>
       </div>
     </div>
